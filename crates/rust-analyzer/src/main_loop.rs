@@ -288,7 +288,7 @@ impl GlobalState {
 
             if became_quiescent {
                 // Project has loaded properly, kick off initial flycheck
-                self.flycheck.iter().for_each(FlycheckHandle::restart);
+                self.flycheck.iter().for_each(|x| FlycheckHandle::restart(x, None));
                 if self.config.prefill_caches() {
                     self.prime_caches_queue.request_op("became quiescent".to_string());
                 }
@@ -812,7 +812,8 @@ impl GlobalState {
                             for (id, _) in workspace_ids.clone() {
                                 if id == flycheck.id() {
                                     updated = true;
-                                    flycheck.restart();
+                                    // flycheck.restart();
+                                    flycheck.restart(Some(params.text_document.uri.clone().path().to_string()));
                                     continue;
                                 }
                             }
@@ -831,7 +832,8 @@ impl GlobalState {
                 // No specific flycheck was triggered, so let's trigger all of them.
                 if !updated {
                     for flycheck in &this.flycheck {
-                        flycheck.restart();
+                        // flycheck.restart();
+                        flycheck.restart(Some(params.text_document.uri.clone().path().to_string()));
                     }
                 }
                 Ok(())

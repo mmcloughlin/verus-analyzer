@@ -77,8 +77,11 @@ impl FlycheckHandle {
     }
 
     /// Schedule a re-start of the cargo check worker.
-    pub fn restart(&self) {
-        self.sender.send(Restart::Yes).unwrap();
+    pub fn restart(&self, filepath: Option<String>) {
+        match filepath {
+            Some(path) => self.sender.send(Restart::RunVerus(path)).unwrap(),
+            None => self.sender.send(Restart::Yes).unwrap(), 
+        };
     }
 
     /// Stop this cargo check worker.
@@ -131,6 +134,7 @@ pub enum Progress {
 enum Restart {
     Yes,
     No,
+    RunVerus(String),
 }
 
 struct FlycheckActor {
@@ -182,12 +186,12 @@ impl FlycheckActor {
                     self.cancel_check_process();
                     while let Ok(_) = inbox.recv_timeout(Duration::from_millis(50)) {}
 
-                    let command = self.check_command();
+                    let command = self.check_command(None);
                     tracing::debug!(?command, "will restart flycheck");
                     match CargoHandle::spawn(command) {
                         Ok(cargo_handle) => {
                             tracing::debug!(
-                                command = ?self.check_command(),
+                                command = ?self.check_command(None),
                                 "did  restart flycheck"
                             );
                             self.cargo_handle = Some(cargo_handle);
@@ -196,7 +200,35 @@ impl FlycheckActor {
                         Err(error) => {
                             self.progress(Progress::DidFailToRestart(format!(
                                 "Failed to run the following command: {:?} error={}",
-                                self.check_command(),
+                                self.check_command(None),
+                                error
+                            )));
+                        }
+                    }
+                }
+                Event::Restart(Restart::RunVerus(path)) => {   
+                    dbg!("restart verus");
+                    // Cancel the previously spawned process
+                    self.cancel_check_process();
+                    while let Ok(_) = inbox.recv_timeout(Duration::from_millis(50)) {}
+
+                    let command = self.check_command(Some(path.clone()));
+                    tracing::debug!(?command, "will restart flycheck");
+                    match CargoHandle::spawn(command) {
+                        Ok(cargo_handle) => {
+                            tracing::debug!(
+                                command = ?self.check_command(Some(path.clone())),
+                                "did  restart flycheck"
+                            );
+                            dbg!("cargo handle spawn success");
+                            self.cargo_handle = Some(cargo_handle);
+                            self.progress(Progress::DidStart);
+                        }
+                        Err(error) => {
+                            dbg!("cargo handle spwan failed");
+                            self.progress(Progress::DidFailToRestart(format!(
+                                "Failed to run the following command: {:?} error={}",
+                                self.check_command(Some(path.clone())),
                                 error
                             )));
                         }
@@ -211,7 +243,7 @@ impl FlycheckActor {
                     if res.is_err() {
                         tracing::error!(
                             "Flycheck failed to run the following command: {:?}",
-                            self.check_command()
+                            self.check_command(None)
                         );
                     }
                     self.progress(Progress::DidFinish(res));
@@ -238,7 +270,7 @@ impl FlycheckActor {
     fn cancel_check_process(&mut self) {
         if let Some(cargo_handle) = self.cargo_handle.take() {
             tracing::debug!(
-                command = ?self.check_command(),
+                command = ?self.check_command(None),
                 "did  cancel flycheck"
             );
             cargo_handle.cancel();
@@ -246,7 +278,7 @@ impl FlycheckActor {
         }
     }
 
-    fn check_command(&self) -> Command {
+    fn check_command(&self, filepath:Option<String>) -> Command {
         let mut cmd = match &self.config {
             FlycheckConfig::CargoCommand {
                 command,
@@ -284,9 +316,30 @@ impl FlycheckActor {
                 cmd
             }
             FlycheckConfig::CustomCommand { command, args } => {
-                let mut cmd = Command::new(command);
-                cmd.args(args);
-                cmd
+                // verus users change config to run Verus, so end up in this path
+                dbg!(&command);
+                dbg!(&args);
+                match filepath.as_ref() {
+                    Some(path) => {
+                        //  replace "${file}" with current-saved filename
+                        let mut args = args.to_vec();
+                        args = args.iter().map(|x| {if x == "${file}"  {path.clone()} else {x.clone()} }).collect();
+                        let mut cmd = Command::new(command);
+                        cmd.args(args);
+                        cmd
+                    },
+                    None => {
+                        // rust-analyzer call "restart cargo check" quite often
+                        // if this was not called by "save", 
+                        // lets just do simple cargo check
+                        let mut cmd = Command::new(toolchain::cargo());
+                        cmd.arg("check");
+                        cmd.current_dir(&self.workspace_root);
+                        cmd.args(&["--workspace", "--message-format=json", "--manifest-path"])
+                            .arg(self.workspace_root.join("Cargo.toml").as_os_str());
+                        cmd
+                    }
+                }
             }
         };
         cmd.current_dir(&self.workspace_root);
@@ -364,15 +417,14 @@ impl CargoActor {
         // Because cargo only outputs one JSON object per line, we can
         // simply skip a line if it doesn't parse, which just ignores any
         // erroneous output.
-
         let mut error = String::new();
-        let mut read_at_least_one_message = false;
+        let mut read_at_least_one_stdout = false;
+        let mut read_at_least_one_stderr = false;
         let output = streaming_output(
             self.stdout,
             self.stderr,
             &mut |line| {
-                read_at_least_one_message = true;
-
+                read_at_least_one_stdout = true;
                 // Try to deserialize a message from Cargo or Rustc.
                 let mut deserializer = serde_json::Deserializer::from_str(line);
                 deserializer.disable_recursion_limit();
@@ -394,19 +446,49 @@ impl CargoActor {
                             self.sender.send(CargoMessage::Diagnostic(message)).unwrap();
                         }
                     }
+                } else {
+                    dbg!("json deserialize error");
                 }
             },
+            // FIXME: I think below should be removed given that  original r-a properly gets complier error from stdout
+            // Does verus outputs stderr?
             &mut |line| {
-                error.push_str(line);
-                error.push('\n');
+                read_at_least_one_stderr = true;
+                // Try to deserialize a message from Cargo or Rustc.
+                let mut deserializer = serde_json::Deserializer::from_str(line);
+                deserializer.disable_recursion_limit();
+                if let Ok(message) = JsonMessage::deserialize(&mut deserializer) {
+                    match message {
+                        // Skip certain kinds of messages to only spend time on what's useful
+                        JsonMessage::Cargo(message) => match message {
+                            cargo_metadata::Message::CompilerArtifact(artifact)
+                                if !artifact.fresh =>
+                            {
+                                self.sender.send(CargoMessage::CompilerArtifact(artifact)).unwrap();
+                            }
+                            cargo_metadata::Message::CompilerMessage(msg) => {
+                                self.sender.send(CargoMessage::Diagnostic(msg.message)).unwrap();
+                            }
+                            _ => (),
+                        },
+                        JsonMessage::Rustc(message) => {
+                            self.sender.send(CargoMessage::Diagnostic(message)).unwrap();
+                        }
+                    }
+                } else {
+                    dbg!("json deserialize error");
+                }
             },
         );
+    
+        let read_at_least_one_message = read_at_least_one_stdout || read_at_least_one_stderr;
         match output {
             Ok(_) => Ok((read_at_least_one_message, error)),
             Err(e) => Err(io::Error::new(e.kind(), format!("{:?}: {}", e, error))),
         }
     }
 }
+
 
 enum CargoMessage {
     CompilerArtifact(cargo_metadata::Artifact),
