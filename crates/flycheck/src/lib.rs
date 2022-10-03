@@ -129,6 +129,7 @@ pub enum Progress {
     DidFinish(io::Result<()>),
     DidCancel,
     DidFailToRestart(String),
+    VerusResult(String),
 }
 
 enum Restart {
@@ -259,6 +260,9 @@ impl FlycheckActor {
                             workspace_root: self.workspace_root.clone(),
                             diagnostic: msg,
                         });
+                    }
+                    CargoMessage::VerusResult(msg) => {
+                        self.progress(Progress::VerusResult(msg));
                     }
                 },
             }
@@ -450,6 +454,11 @@ impl CargoActor {
                     }
                 } else {
                     dbg!("json deserialize error");
+                    // report verification result
+                    if line.starts_with("verification results::") {
+                        dbg!("generating verus result");
+                        self.sender.send(CargoMessage::VerusResult(line.to_string())).unwrap();
+                    }
                 }
             },
             // FIXME: I think below should be removed given that  original r-a properly gets complier error from stdout
@@ -479,6 +488,12 @@ impl CargoActor {
                     }
                 } else {
                     dbg!("json deserialize error");
+                    // report verification result
+                    if line.starts_with("verification results::") {
+                        dbg!("generating verus result");
+                        self.sender.send(CargoMessage::VerusResult(line.to_string())).unwrap();
+                    }
+                    
                 }
             },
         );
@@ -495,6 +510,7 @@ impl CargoActor {
 enum CargoMessage {
     CompilerArtifact(cargo_metadata::Artifact),
     Diagnostic(Diagnostic),
+    VerusResult(String),
 }
 
 #[derive(Deserialize)]
