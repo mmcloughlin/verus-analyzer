@@ -72,9 +72,9 @@ mod tests;
 pub mod utils;
 
 use hir::Semantics;
-use ide_db::{base_db::FileRange, RootDatabase};
+use ide_db::{base_db::FileRange, base_db::FileId, RootDatabase};
 use syntax::TextRange;
-
+use stdx::hash::NoHashHashMap;
 pub(crate) use crate::assist_context::{AssistContext, Assists};
 
 pub use assist_config::AssistConfig;
@@ -93,13 +93,58 @@ pub fn assists(
     range: FileRange,
 ) -> Vec<Assist> {
     let sema = Semantics::new(db);
-    let ctx = AssistContext::new(sema, config, range);
+    let ctx = AssistContext::new(sema, config, range, vec![]);
     let mut acc = Assists::new(&ctx, resolve);
     handlers::all().iter().for_each(|handler| {
         handler(&mut acc, &ctx);
     });
     acc.finish()
 }
+
+pub fn assists_with_diagnostic(
+    db: &RootDatabase,
+    config: &AssistConfig,
+    resolve: AssistResolveStrategy,
+    range: FileRange,
+    verus_error: Vec<VerusError>,
+) -> Vec<Assist> {
+    let sema = Semantics::new(db);
+    let ctx = AssistContext::new(sema, config, range, verus_error);
+    let mut acc = Assists::new(&ctx, resolve);
+    handlers::all().iter().for_each(|handler| {
+        handler(&mut acc, &ctx);
+    });
+    acc.finish()
+}
+
+
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub enum VerusError {
+    Pre(PreFailure),
+    Post(PostFailure),
+    Assert(AssertFailure),
+    // pub typ: VerusErrorType,
+    // pub range: lsp_types::Range,
+    // TODO: add more stuffs that helps
+}
+
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub struct PreFailure {
+    pub failing_pre: TextRange,
+    pub callsite: TextRange,
+}
+
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub struct PostFailure {
+    pub failing_post: TextRange,
+    pub func_body: TextRange,
+}
+
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub struct AssertFailure {
+    pub range: TextRange,
+}
+
 
 mod handlers {
     use crate::{AssistContext, Assists};

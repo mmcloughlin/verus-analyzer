@@ -21,6 +21,7 @@ text-edit = { path = "../text-edit", version = "0.0.0" }
 profile = { path = "../profile", version = "0.0.0" }
 ide-db = { path = "../ide-db", version = "0.0.0" }
 hir = { path = "../hir", version = "0.0.0" }
+lsp-types = { version = "0.93.1", features = ["proposed"] }
 
 [dev-dependencies]
 test-utils = { path = "../test-utils" }

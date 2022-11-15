@@ -510,8 +510,8 @@ impl CargoActor {
                             cargo_metadata::Message::CompilerArtifact(artifact)
                                 if !artifact.fresh =>
                             {
-                                // dbg!(&artifact);
-                                self.sender.send(CargoMessage::CompilerArtifact(artifact)).unwrap();
+                                dbg!(&artifact);
+                                // self.sender.send(CargoMessage::CompilerArtifact(artifact)).unwrap();
                             }
                             cargo_metadata::Message::CompilerMessage(msg) => {
                                 // dbg!(&msg);
@@ -520,6 +520,7 @@ impl CargoActor {
                             _ => (),
                         },
                         JsonMessage::Rustc(message) => {
+                            // seems like this is the one that gets verification error
                             // dbg!(&message);
                             self.sender.send(CargoMessage::Diagnostic(message)).unwrap();
                         }

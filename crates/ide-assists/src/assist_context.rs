@@ -11,9 +11,13 @@ use syntax::{
 
 use crate::{
     assist_config::AssistConfig, Assist, AssistId, AssistKind, AssistResolveStrategy, GroupLabel,
+    VerusError,PostFailure, PreFailure, AssertFailure,
 };
 
 pub(crate) use ide_db::source_change::{SourceChangeBuilder, TreeMutator};
+use stdx::hash::NoHashHashMap;
+use lsp_types::{DiagnosticSeverity, Range};
+
 
 /// `AssistContext` allows to apply an assist or check if it could be applied.
 ///
@@ -51,6 +55,8 @@ pub(crate) struct AssistContext<'a> {
     frange: FileRange,
     trimmed_range: TextRange,
     source_file: SourceFile,
+    // verus
+    pub(crate) verus_errors: Vec<VerusError>, 
 }
 
 impl<'a> AssistContext<'a> {
@@ -58,6 +64,7 @@ impl<'a> AssistContext<'a> {
         sema: Semantics<'a, RootDatabase>,
         config: &'a AssistConfig,
         frange: FileRange,
+        verus_errors: Vec<VerusError>, 
     ) -> AssistContext<'a> {
         let source_file = sema.parse(frange.file_id);
 
@@ -78,7 +85,7 @@ impl<'a> AssistContext<'a> {
             _ => frange.range,
         };
 
-        AssistContext { config, sema, frange, source_file, trimmed_range }
+        AssistContext { config, sema, frange, source_file, trimmed_range, verus_errors}
     }
 
     pub(crate) fn db(&self) -> &RootDatabase {
@@ -126,7 +133,45 @@ impl<'a> AssistContext<'a> {
     pub(crate) fn covering_element(&self) -> SyntaxElement {
         self.source_file.syntax().covering_element(self.selection_trimmed())
     }
+
+
+    // verus
+    pub(crate) fn find_node_at_this_range<N: AstNode>(&self, trimmed_range:TextRange) -> Option<N> {
+        find_node_at_range(self.source_file.syntax(), trimmed_range)
+    }
+    // TODO: use "flycheck id" and "file id"
+    // TODO: define API functions that returns a list of VerusError 
+    //       list of errors of specific conditions: error-type, surrounding function, offset, etc
+    pub(crate) fn verus_errors(&self) -> Vec<VerusError> {
+        self.verus_errors.to_vec()
+    }
+    pub(crate) fn verus_pre_failures(&self) -> Vec<VerusError> {
+        let pre_errors:Vec<VerusError> = self.verus_errors.to_vec().into_iter().filter(
+            |verr| 
+                match *verr {
+                    VerusError::Pre(_) => true,
+                    _ => false}).collect();
+        pre_errors
+    }
+    pub(crate) fn verus_post_failures(&self) -> Vec<VerusError> {
+        let post_errors:Vec<VerusError> = self.verus_errors.to_vec().into_iter().filter(
+            |verr| 
+                match *verr {
+                    VerusError::Post(_) => true,
+                    _ => false}).collect();
+        post_errors
+    }
+    pub(crate) fn node_from_pre_failure(&self, pre: PreFailure) -> Option<syntax::ast::Expr> {
+        self.find_node_at_this_range::<syntax::ast::Expr>(pre.failing_pre)
+    }
+    pub(crate) fn node_from_post_failure(&self, post: PostFailure) -> Option<syntax::ast::Expr> {
+        self.find_node_at_this_range::<syntax::ast::Expr>(post.failing_post)
+    }
+
+
+
 }
+
 
 pub(crate) struct Assists {
     file: FileId,

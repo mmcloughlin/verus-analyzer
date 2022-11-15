@@ -15,6 +15,7 @@ use itertools::Itertools;
 use lsp_server::{Connection, Notification, Request};
 use lsp_types::notification::Notification as _;
 use vfs::{ChangeKind, FileId};
+use syntax::{TextRange, TextSize};
 
 use crate::{
     config::Config,
@@ -27,6 +28,7 @@ use crate::{
     reload::{self, BuildDataProgress, ProjectWorkspaceProgress},
     Result,
 };
+use ide_assists::{VerusError, PreFailure, PostFailure, AssertFailure};
 
 pub fn main_loop(config: Config, connection: Connection) -> Result<()> {
     tracing::info!("initial config: {:#?}", config);
@@ -526,10 +528,65 @@ impl GlobalState {
         }
     }
 
+
+    fn diagnostic_to_verus_err(&mut self, diagnostic: &cargo_metadata::diagnostic::Diagnostic) -> Option<VerusError> {
+        if diagnostic.message.contains("precondition not satisfied") {
+            dbg!("pre");
+            dbg!(&diagnostic.spans);
+            if diagnostic.spans.len() == 2{
+                let range0 = TextRange::new(TextSize::from(diagnostic.spans[0].byte_start), TextSize::from(diagnostic.spans[0].byte_end));
+                let range1 =  TextRange::new(TextSize::from(diagnostic.spans[1].byte_start), TextSize::from(diagnostic.spans[1].byte_end));
+                let verr;
+                if diagnostic.spans[0].is_primary {
+                    verr = VerusError::Pre(PreFailure { failing_pre: range1, callsite: range0 });
+                } else {
+                    verr = VerusError::Pre(PreFailure { failing_pre: range0, callsite: range1 });
+                }
+                Some(verr)
+            } else {
+                dbg!("pre unexpected num of span");
+                None
+            }
+        } else if diagnostic.message.contains("postcondition not satisfied") {
+            dbg!("post");
+            dbg!(&diagnostic.spans);
+            if diagnostic.spans.len() == 2{
+                let range0 = TextRange::new(TextSize::from(diagnostic.spans[0].byte_start), TextSize::from(diagnostic.spans[0].byte_end));
+                let range1 =  TextRange::new(TextSize::from(diagnostic.spans[1].byte_start), TextSize::from(diagnostic.spans[1].byte_end));
+                let verr;
+                if diagnostic.spans[0].is_primary {
+                    verr = VerusError::Post(PostFailure { failing_post: range1, func_body: range0 });
+                } else {
+                    verr = VerusError::Post(PostFailure { failing_post: range0, func_body: range1});
+                }
+                Some(verr)
+            } else {
+                dbg!("pre unexpected num of span");
+                None
+            }
+        } else if diagnostic.message.contains("assertion failed") {
+            dbg!("assert");
+            dbg!("only reading first span now");
+            dbg!(&diagnostic.spans);
+            let range =  TextRange::new(TextSize::from(diagnostic.spans[0].byte_start), TextSize::from(diagnostic.spans[0].byte_end));
+            let verr = VerusError::Assert(AssertFailure{range});
+            dbg!(&verr);
+            Some(verr)
+        } else {
+            None
+        }
+    }
+
     fn handle_flycheck_msg(&mut self, message: flycheck::Message) {
         match message {
             flycheck::Message::AddDiagnostic { id, workspace_root, diagnostic } => {
+                match self.diagnostic_to_verus_err(&diagnostic) {
+                    Some(verr) => self.verus_errors.push(verr),
+                    None => {dbg!("not a verus error");},
+                };
+                // dbg!("propagating:");
                 // dbg!(&diagnostic);
+                // TODO(verus): register verification error to global context
                 let snap = self.snapshot();
                 let diagnostics = crate::diagnostics::to_proto::map_rust_diagnostic_to_lsp(
                     &self.config.diagnostics_map(),

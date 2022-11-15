@@ -585,7 +585,6 @@ impl Analysis {
     ) -> Cancellable<Vec<Diagnostic>> {
         self.with_db(|db| ide_diagnostics::diagnostics(db, config, &resolve, file_id))
     }
-
     /// Convenience function to return assists + quick fixes for diagnostics
     pub fn assists_with_fixes(
         &self,
@@ -593,6 +592,7 @@ impl Analysis {
         diagnostics_config: &DiagnosticsConfig,
         resolve: AssistResolveStrategy,
         frange: FileRange,
+        verus_errors: Vec<ide_assists::VerusError>,
     ) -> Cancellable<Vec<Assist>> {
         let include_fixes = match &assist_config.allowed {
             Some(it) => it.iter().any(|&it| it == AssistKind::None || it == AssistKind::QuickFix),
@@ -610,7 +610,7 @@ impl Analysis {
                 Vec::new()
             };
             let ssr_assists = ssr::ssr_assists(db, &resolve, frange);
-            let assists = ide_assists::assists(db, assist_config, resolve, frange);
+            let assists = ide_assists::assists_with_diagnostic(db, assist_config, resolve, frange, verus_errors);
 
             let mut res = diagnostic_assists;
             res.extend(ssr_assists.into_iter());

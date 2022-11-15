@@ -1092,11 +1092,13 @@ pub(crate) fn handle_code_action(
     } else {
         AssistResolveStrategy::All
     };
+    // dbg!(&snap.diagnostics);
     let assists = snap.analysis.assists_with_fixes(
         &assists_config,
         &snap.config.diagnostics(),
         resolve,
         frange,
+        snap.verus_errors.to_vec(),
     )?;
     for (index, assist) in assists.into_iter().enumerate() {
         let resolve_data =
@@ -1166,6 +1168,7 @@ pub(crate) fn handle_code_action_resolve(
         &snap.config.diagnostics(),
         AssistResolveStrategy::Single(assist_resolve),
         frange,
+        snap.verus_errors.to_vec(),
     )?;
 
     let assist = match assists.get(assist_index) {

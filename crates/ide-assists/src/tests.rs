@@ -142,7 +142,7 @@ fn check(handler: Handler, before: &str, expected: ExpectedResult<'_>, assist_la
 
 
 
-    let ctx = AssistContext::new(sema, &config, frange);
+    let ctx = AssistContext::new(sema, &config, frange, vec![]); //TODO(verus)
     let resolve = match expected {
         ExpectedResult::Unresolved => AssistResolveStrategy::None,
         _ => AssistResolveStrategy::All,
