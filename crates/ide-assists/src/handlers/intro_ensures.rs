@@ -1,4 +1,4 @@
-use syntax::{ast::{self, make::{assert_stmt_from_predicate, let_stmt, ext::ident_path, expr_path, self}}, AstNode, TextRange, TextSize};
+use syntax::{ast::{self, make::{assert_stmt_from_predicate, let_stmt, ext::ident_path, expr_path, self}}, AstNode};
 use syntax::ast::edit::IndentLevel;
 use syntax::ast::Pat;
 use crate::{AssistContext, AssistId, AssistKind, Assists};

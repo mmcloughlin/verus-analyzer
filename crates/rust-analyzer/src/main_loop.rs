@@ -614,7 +614,7 @@ impl GlobalState {
                 let (state, message) = match progress {
                     flycheck::Progress::DidStart => {
                         self.diagnostics.clear_check(id);
-                        self.verus_erorrs = vec![]; // Review(Verus)
+                        self.verus_errors = vec![]; // Review(Verus)
                         (Progress::Begin, None)
                     }
                     flycheck::Progress::DidCheckCrate(target) => (Progress::Report, Some(target)),

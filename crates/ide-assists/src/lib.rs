@@ -72,9 +72,8 @@ mod tests;
 pub mod utils;
 
 use hir::Semantics;
-use ide_db::{base_db::FileRange, base_db::FileId, RootDatabase};
+use ide_db::{base_db::FileRange, RootDatabase};
 use syntax::TextRange;
-use stdx::hash::NoHashHashMap;
 pub(crate) use crate::assist_context::{AssistContext, Assists};
 
 pub use assist_config::AssistConfig;
@@ -207,6 +206,7 @@ mod handlers {
     mod assert_by;
     mod assert_comment;
     mod intro_ensures;
+    mod intro_failing_ensures;
     mod intro_requires;
     mod merge_imports;
     mod merge_match_arms;
@@ -303,6 +303,7 @@ mod handlers {
             assert_by::assert_by,
             assert_comment::assert_comment,
             intro_ensures::intro_ensures,
+            intro_failing_ensures::intro_failing_ensures,
             intro_requires::intro_requires,
             merge_imports::merge_imports,
             merge_match_arms::merge_match_arms,

@@ -12,13 +12,10 @@ use syntax::{
 
 use crate::{
     assist_config::AssistConfig, Assist, AssistId, AssistKind, AssistResolveStrategy, GroupLabel,
-    VerusError,PostFailure, PreFailure, AssertFailure,
+    VerusError,PostFailure, PreFailure, 
 };
 
 pub(crate) use ide_db::source_change::{SourceChangeBuilder, TreeMutator};
-use lsp_types::{DiagnosticSeverity, Range};
-
-
 
 
 use std::{process::Command, hash::{Hash, Hasher}};
@@ -28,7 +25,7 @@ use std::path::Path;
 use std::time::{Instant};
 use std::collections::hash_map::DefaultHasher;
 use std::env;
-use serde::{Serialize, Deserialize, Deserializer};
+use serde::{Serialize, Deserialize};
 
 /// `AssistContext` allows to apply an assist or check if it could be applied.
 ///
