@@ -30,8 +30,9 @@ pub(crate) fn intro_ensures(acc: &mut Assists, ctx: &AssistContext<'_>) -> Optio
     //         },
     //     }
     // }
-    dbg!(ctx.verus_post_failures());
-    dbg!(ctx.verus_pre_failures());
+    // let _ = crate::assist_context::run_comby_for(String::from("/usr/local/bin/comby"), String::from("fn :[_]{:[body]}"), ensures_keyword);
+    // dbg!(ctx.verus_post_failures());
+    // dbg!(ctx.verus_pre_failures());
 
     dbg!("calculating code diff for intro_ensures");
     let new_func = code_transformer_intro_ensures(func.clone())?;

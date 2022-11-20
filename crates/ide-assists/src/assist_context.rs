@@ -3,6 +3,7 @@
 use hir::Semantics;
 use ide_db::base_db::{FileId, FileRange};
 use ide_db::{label::Label, RootDatabase};
+use syntax::ast::HasName;
 use syntax::{
     algo::{self, find_node_at_offset, find_node_at_range},
     AstNode, AstToken, Direction, SourceFile, SyntaxElement, SyntaxKind, SyntaxToken, TextRange,
@@ -18,6 +19,17 @@ pub(crate) use ide_db::source_change::{SourceChangeBuilder, TreeMutator};
 use stdx::hash::NoHashHashMap;
 use lsp_types::{DiagnosticSeverity, Range};
 
+
+
+
+use std::{process::Command, hash::{Hash, Hasher}};
+use std::fs::File;
+use std::io::prelude::*;
+use std::path::Path;
+use std::time::{Instant};
+use std::collections::hash_map::DefaultHasher;
+use std::env;
+use serde::{Serialize, Deserialize, Deserializer};
 
 /// `AssistContext` allows to apply an assist or check if it could be applied.
 ///
@@ -134,7 +146,6 @@ impl<'a> AssistContext<'a> {
         self.source_file.syntax().covering_element(self.selection_trimmed())
     }
 
-
     // verus
     pub(crate) fn find_node_at_this_range<N: AstNode>(&self, trimmed_range:TextRange) -> Option<N> {
         find_node_at_range(self.source_file.syntax(), trimmed_range)
@@ -167,6 +178,12 @@ impl<'a> AssistContext<'a> {
     pub(crate) fn node_from_post_failure(&self, post: PostFailure) -> Option<syntax::ast::Expr> {
         self.find_node_at_this_range::<syntax::ast::Expr>(post.failing_post)
     }
+
+
+    // pub(crate) fn node_from_comby_pattern(&self, pattern: String) -> Option<syntax::ast::Expr> { // REVIEW: return type?
+
+
+    // }
 
 
 
@@ -253,3 +270,129 @@ impl Assists {
         }
     }
 }
+
+
+
+// TODO: return vector of textrange instead of one
+// at the call site, filter results with the surrounding function range
+pub fn run_comby_for(comby_exec_path: String, comby_pattern: String, token: SyntaxToken) -> Option<TextRange> {
+    let mut temp_text_string = String::new();
+    let mut func_name = String::new();
+    let flag_match_only = "-match-only";
+    let flag_json_lines = "-json-lines";
+    let flag_match_new_line = "-match-newline-at-toplevel";
+
+    // get the text of the most grand parent
+    // while doing so, find the surrounding function of this token. (to run "--verify-function")
+    for ancestor in token.parent_ancestors() {
+        temp_text_string = String::from(ancestor.text());
+        match ancestor.kind() {
+            SyntaxKind::FN => {
+                if func_name.len() > 0 { // if already found a function as a parent
+                    dbg!("Not supported: when invoking verus, found func inside func. ");
+                    return None;
+                }
+                let func = syntax::ast::Fn::cast(ancestor)?;
+                func_name = func.name()?.to_string();
+            }
+            _ => (),
+        }
+    }
+
+    // TODO: instead of writing to a file, consider
+    // `dev/shm` OR `man memfd_create`
+    let mut hasher = DefaultHasher::new();
+    let now = Instant::now();
+    now.hash(&mut hasher);
+    let tmp_dir = env::temp_dir();
+    let tmp_name = format!("{}_verus_search_comby{:?}_.rs", tmp_dir.display(), hasher.finish());
+    let path = Path::new(&tmp_name);
+    let display = path.display();
+
+    let mut file = match File::create(&path) {
+        Err(why) =>{dbg!("couldn't create {}: {}", display, why); return None},
+        Ok(file) => file,
+    };
+
+    match file.write_all(temp_text_string.as_bytes()) {
+        Err(why) => {dbg!("couldn't write to {}: {}", display, why); return None},
+        Ok(_) => dbg!("successfully wrote to {}", display),
+    };
+
+    dbg!(&comby_exec_path, &comby_pattern, &path, &flag_match_only, &flag_json_lines);
+    let output = Command::new(comby_exec_path)
+    .arg(comby_pattern)
+    .arg(".")
+    .arg(path)
+    .arg(flag_match_only)
+    .arg(flag_json_lines)
+    .arg(flag_match_new_line)
+    .output();
+
+    match std::fs::remove_file(path) {
+        Err(why) => {dbg!("couldn't remove file {}: {}", path.display(), why);},
+        Ok(_) => {dbg!("successfully removed {}", path.display());},
+    };
+
+    let output = output.ok()?;
+    dbg!(&output);
+    if output.status.success() {
+        dbg!("output stauts success");
+    } else {
+        dbg!("output stauts failure");
+        return None;
+    }
+    
+    for line in output.stdout.lines() {
+        let line = line.unwrap();
+        dbg!(&line);
+        let deserialized: CombyResult = serde_json::from_str(&line).unwrap();
+        dbg!(&deserialized);
+    }
+    return None;
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CombyResult {
+    pub uri: Option<String>, // REVIEW: PATH?
+    pub matches: Vec<MatchInfo>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MatchInfo {
+    pub range: CombyRange,
+    pub environment: Vec<EnvironmentInfo> ,
+    pub matched: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct EnvironmentInfo {
+    pub variable: String,  // REVIEW: Option<String> ?
+    pub value: String,
+    pub range: CombyRange,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CombyRange {
+    pub start: RangeInfo,
+    pub end: RangeInfo,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RangeInfo {
+    pub offset: u32,
+    pub line: u32,
+    pub column: u32,
+}
+
+
+
+
+#[test]
+fn verus_comby1() {
+    let json_line = r#"{"uri":"/Users/chanhee/hey.rs","matches":[{"range":{"start":{"offset":6,"line":1,"column":7},"end":{"offset":167,"line":10,"column":2}},"environment":[{"variable":"_","value":"my_proof_fun(x: u32, y: u32)\n    requires\n        x < 100,\n        y < 100,\n    ensures\n        x + y < 200,\n        x + y < 400,\n","range":{"start":{"offset":9,"line":1,"column":10},"end":{"offset":139,"line":8,"column":1}}},{"variable":"body","value":"\n    assert(x + y < 600);\n","range":{"start":{"offset":140,"line":8,"column":2},"end":{"offset":166,"line":10,"column":1}}}],"matched":"fn my_proof_fun(x: u32, y: u32)\n    requires\n        x < 100,\n        y < 100,\n    ensures\n        x + y < 200,\n        x + y < 400,\n{\n    assert(x + y < 600);\n}"}]}"#;
+    let deserialized: CombyResult = serde_json::from_str(&json_line).unwrap();
+    dbg!(&deserialized);
+}
+
+

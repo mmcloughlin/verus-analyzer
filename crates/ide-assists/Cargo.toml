@@ -22,6 +22,8 @@ profile = { path = "../profile", version = "0.0.0" }
 ide-db = { path = "../ide-db", version = "0.0.0" }
 hir = { path = "../hir", version = "0.0.0" }
 lsp-types = { version = "0.93.1", features = ["proposed"] }
+serde = { version = "1.0.137", features = ["derive"] }
+serde_json = "1.0.81"
 
 [dev-dependencies]
 test-utils = { path = "../test-utils" }

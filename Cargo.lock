@@ -622,6 +622,8 @@ dependencies = [
  "itertools",
  "lsp-types",
  "profile",
+ "serde",
+ "serde_json",
  "sourcegen",
  "stdx",
  "syntax",

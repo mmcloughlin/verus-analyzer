@@ -581,6 +581,7 @@ impl GlobalState {
         match message {
             flycheck::Message::AddDiagnostic { id, workspace_root, diagnostic } => {
                 match self.diagnostic_to_verus_err(&diagnostic) {
+                    // TODO: should empty verus_error list when "restart flycheck"
                     Some(verr) => self.verus_errors.push(verr),
                     None => {dbg!("not a verus error");},
                 };
@@ -613,6 +614,7 @@ impl GlobalState {
                 let (state, message) = match progress {
                     flycheck::Progress::DidStart => {
                         self.diagnostics.clear_check(id);
+                        self.verus_erorrs = vec![]; // Review(Verus)
                         (Progress::Begin, None)
                     }
                     flycheck::Progress::DidCheckCrate(target) => (Progress::Report, Some(target)),
