@@ -15,4 +15,5 @@ pub struct AssistConfig {
     pub insert_use: InsertUseConfig,
     //verus
     pub verus_path: String,
+    // pub comby_path: String,
 }

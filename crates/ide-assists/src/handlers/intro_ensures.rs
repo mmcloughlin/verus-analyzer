@@ -13,27 +13,6 @@ pub(crate) fn intro_ensures(acc: &mut Assists, ctx: &AssistContext<'_>) -> Optio
     if !cursor_in_range {
         return None;
     }
-    // dbg!(&ctx.verus_errors);
-    // for verr in &ctx.verus_errors {
-    //     match verr {
-    //         crate::VerusError::Pre(pre) => {
-    //             let h = ctx.find_node_at_this_range::<ast::Expr>(pre.failing_pre);
-    //             dbg!(&h);
-    //         }
-    //         crate::VerusError::Post(post) => {
-    //             let h = ctx.find_node_at_this_range::<ast::Expr>(post.failing_post);
-    //             dbg!(&h);
-    //         }
-    //         crate::VerusError::Assert(assert_failure) => {
-    //             let h = ctx.find_node_at_this_range::<ast::Expr>(assert_failure.range);
-    //             dbg!(&h);
-    //         },
-    //     }
-    // }
-    // let _ = crate::assist_context::run_comby_for(String::from("/usr/local/bin/comby"), String::from("fn :[_]{:[body]}"), ensures_keyword);
-    // dbg!(ctx.verus_post_failures());
-    // dbg!(ctx.verus_pre_failures());
-
     dbg!("calculating code diff for intro_ensures");
     let new_func = code_transformer_intro_ensures(func.clone())?;
     acc.add(AssistId("intro_ensures", AssistKind::RefactorRewrite), "Copy ensures clauses to the end", ensures_range, |edit| {

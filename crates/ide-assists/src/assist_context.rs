@@ -16,7 +16,6 @@ use crate::{
 };
 
 pub(crate) use ide_db::source_change::{SourceChangeBuilder, TreeMutator};
-use stdx::hash::NoHashHashMap;
 use lsp_types::{DiagnosticSeverity, Range};
 
 
@@ -147,6 +146,8 @@ impl<'a> AssistContext<'a> {
     }
 
     // verus
+
+    // REVIEW: trimmed_range?
     pub(crate) fn find_node_at_this_range<N: AstNode>(&self, trimmed_range:TextRange) -> Option<N> {
         find_node_at_range(self.source_file.syntax(), trimmed_range)
     }
@@ -172,6 +173,9 @@ impl<'a> AssistContext<'a> {
                     _ => false}).collect();
         post_errors
     }
+
+    // TODO: add verus error API function that filter verus_error of "this" function
+
     pub(crate) fn node_from_pre_failure(&self, pre: PreFailure) -> Option<syntax::ast::Expr> {
         self.find_node_at_this_range::<syntax::ast::Expr>(pre.failing_pre)
     }
@@ -179,12 +183,30 @@ impl<'a> AssistContext<'a> {
         self.find_node_at_this_range::<syntax::ast::Expr>(post.failing_post)
     }
 
+    // among N found patterns, collect the range of named "hole".
+    // for example, from this pattern "fn :[_]{:[body]}",
+    // this collects the "body"'s range.
+    // Assume only one "hole" is named and the other "hole"s are just "_".
+    pub(crate) fn textrange_from_comby_pattern(&self, pattern: String) -> Option<Vec<TextRange>> {
+        let func : syntax::ast::Fn = self.find_node_at_offset::<syntax::ast::Fn>()?;
+        let comby_result = run_comby_for(String::from("/usr/local/bin/comby"), pattern, func.fn_token()?)?;
+        dbg!(&comby_result);        
+        let mut text_ranges = vec![];
+        for mat in comby_result.matches {
+            for env in mat.environment {
+                if env.variable == "_" {
+                    continue;
+                }
+                let found_range = text_range_from(env.range.start.offset, env.range.end.offset);
+                text_ranges.push(found_range);
+            }
+        }
+        dbg!(&text_ranges);
+        Some(text_ranges)
+    }
 
     // pub(crate) fn node_from_comby_pattern(&self, pattern: String) -> Option<syntax::ast::Expr> { // REVIEW: return type?
-
-
     // }
-
 
 
 }
@@ -275,7 +297,7 @@ impl Assists {
 
 // TODO: return vector of textrange instead of one
 // at the call site, filter results with the surrounding function range
-pub fn run_comby_for(comby_exec_path: String, comby_pattern: String, token: SyntaxToken) -> Option<TextRange> {
+pub fn run_comby_for(comby_exec_path: String, comby_pattern: String, token: SyntaxToken) -> Option<CombyResult> {
     let mut temp_text_string = String::new();
     let mut func_name = String::new();
     let flag_match_only = "-match-only";
@@ -319,7 +341,7 @@ pub fn run_comby_for(comby_exec_path: String, comby_pattern: String, token: Synt
         Ok(_) => dbg!("successfully wrote to {}", display),
     };
 
-    dbg!(&comby_exec_path, &comby_pattern, &path, &flag_match_only, &flag_json_lines);
+    // dbg!(&comby_exec_path, &comby_pattern, &path, &flag_match_only, &flag_json_lines);
     let output = Command::new(comby_exec_path)
     .arg(comby_pattern)
     .arg(".")
@@ -335,21 +357,26 @@ pub fn run_comby_for(comby_exec_path: String, comby_pattern: String, token: Synt
     };
 
     let output = output.ok()?;
-    dbg!(&output);
+    // dbg!(&output);
     if output.status.success() {
         dbg!("output stauts success");
     } else {
         dbg!("output stauts failure");
         return None;
     }
-    
+
+    // REVIEW: assume only one line result
     for line in output.stdout.lines() {
-        let line = line.unwrap();
-        dbg!(&line);
+        let line = line.unwrap(); // TODO: change this to ? instead of unwrap. For now, I am keeping it to see if this json parsing works well
         let deserialized: CombyResult = serde_json::from_str(&line).unwrap();
-        dbg!(&deserialized);
+        return(Some(deserialized));
     }
     return None;
+}
+
+
+pub fn text_range_from(start: u32, end: u32) -> TextRange {
+    TextRange::new(TextSize::from(start), TextSize::from(end))
 }
 
 #[derive(Debug, Serialize, Deserialize)]
