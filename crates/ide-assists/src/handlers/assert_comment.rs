@@ -4,10 +4,6 @@ use syntax::{
     T, SyntaxToken, SyntaxKind,
 };
 use std::{process::Command, hash::{Hash, Hasher}};
-use std::fs::File;
-use std::io::prelude::*;
-use std::path::Path;
-use std::time::{Instant};
 use crate::{
     assist_context::{AssistContext, Assists},
     AssistId, AssistKind,
@@ -27,8 +23,7 @@ pub(crate) fn assert_comment(acc: &mut Assists, ctx: &AssistContext<'_>) -> Opti
     let assert_stmt = ast::Stmt::ExprStmt(ast::ExprStmt::cast(assert_expr.syntax().parent()?)?);
     let assert_removed_fn = code_transformer_remove_expr_stmt(func, assert_stmt.clone())?;
 
-    if run_verus_for(ctx.config.verus_path.clone(), assert_removed_fn.fn_token()?)? {
-        dbg!("still success without this assertion");
+    if ctx.run_verus_for_fn(assert_removed_fn.fn_token()?)? {
         // TODO: comment out using // rather than /* */
         acc.add(
             AssistId("assert_comment", AssistKind::RefactorRewrite),
@@ -40,7 +35,6 @@ pub(crate) fn assert_comment(acc: &mut Assists, ctx: &AssistContext<'_>) -> Opti
             },
         )
     } else {
-        dbg!("verification failed without this asseriton");
         acc.add(
             AssistId("assert_comment", AssistKind::RefactorRewrite),
             "Check if this assertion is essential",
@@ -71,96 +65,6 @@ pub(crate) fn code_transformer_remove_expr_stmt(func:ast::Fn, assert_stmt: ast::
     assert_stmt.remove();
     Some(func)
 }
-
-
-// TODO: change output type ---- when failure, give Verus error code for further use-cases
-pub fn run_verus_for(verus_exec_path: String, token: SyntaxToken) -> Option<bool> {
-    let mut temp_text_string = String::new();
-    let verify_func_flag = "--verify-function";
-    let verify_root_flag = "--verify-root"; // TODO TODO TODO
-    let rlimit_flag = "--rlimit";
-    let rlimit_number = "3";
-    let mut func_name = String::new();
-
-    // get the text of the most grand parent
-    // while doing so, find the surrounding function of this token. (to run "--verify-function")
-    for ancestor in token.parent_ancestors() {
-        temp_text_string = String::from(ancestor.text());
-        match ancestor.kind() {
-            SyntaxKind::FN => {
-                if func_name.len() > 0 { // if already found a function as a parent
-                    dbg!("Not supported: when invoking verus, found func inside func. ");
-                    return None;
-                }
-                let func = ast::Fn::cast(ancestor)?;
-                func_name = func.name()?.to_string();
-            }
-            _ => (),
-        }
-    }
-
-    // TODO: instead of writing to a file, consider
-    // `dev/shm` OR `man memfd_create`
-    let mut hasher = DefaultHasher::new();
-    let now = Instant::now();
-    now.hash(&mut hasher);
-
-    let tmp_dir = env::temp_dir();
-    let tmp_name = format!("{}_verus_assert_comment_{:?}_.rs", tmp_dir.display(), hasher.finish());
-    dbg!(&tmp_name);
-    let path = Path::new(&tmp_name);
-    let display = path.display();
-
-    // Open a file in write-only mode, returns `io::Result<File>`
-    let mut file = match File::create(&path) {
-        Err(why) =>{dbg!("couldn't create {}: {}", display, why); return None},
-        Ok(file) => file,
-    };
-
-    // Write the modified verus program to `file`, returns `io::Result<()>`
-    match file.write_all(temp_text_string.as_bytes()) {
-        Err(why) => {dbg!("couldn't write to {}: {}", display, why); return None},
-        Ok(_) => dbg!("successfully wrote to {}", display),
-    };
-
-    dbg!(&verus_exec_path, &path, &verify_root_flag, &verify_func_flag, &func_name, &rlimit_flag, &rlimit_number);
-
-    let output = Command::new(verus_exec_path)
-    .arg(path)
-    .arg(verify_root_flag)
-    .arg(verify_func_flag)
-    .arg(func_name)
-    .arg(rlimit_flag)
-    .arg(rlimit_number)
-    .output();
-
-    match std::fs::remove_file(path) {
-        Err(why) => {dbg!("couldn't remove file {}: {}", path.display(), why);},
-        Ok(_) => {dbg!("successfully removed {}", path.display());},
-    };
-
-    let output = output.ok()?;
-    dbg!(&output);
-    if output.status.success() {
-        return Some(true);
-    } else {
-        // disambiguate verification failure     VS    compile error etc
-        match std::str::from_utf8(&output.stdout) {
-            Ok(out) => {
-                if out.contains("verification results:: verified: 0 errors: 0") {
-                    // failure from other errors. (e.g. compile error)
-                    return None;
-                } else {
-                    // verification failure
-                    return Some(false);
-                }
-            }
-            Err(_) => return None,
-        }
-    }
-}
-
-
 
 
 

@@ -7,7 +7,7 @@ use syntax::ast::HasName;
 use syntax::{
     algo::{self, find_node_at_offset, find_node_at_range},
     AstNode, AstToken, Direction, SourceFile, SyntaxElement, SyntaxKind, SyntaxToken, TextRange,
-    TextSize, TokenAtOffset,
+    TextSize, TokenAtOffset, ast
 };
 
 use crate::{
@@ -252,6 +252,10 @@ impl<'a> AssistContext<'a> {
     // pub(crate) fn node_from_comby_pattern(&self, pattern: String) -> Option<syntax::ast::Expr> { // REVIEW: return type?
     // }
 
+    pub(crate) fn run_verus_for_fn(&self, token: SyntaxToken) -> Option<bool> {
+        run_verus_for(self.config.verus_path.clone(), token)
+    }
+
 
 }
 
@@ -336,6 +340,98 @@ impl Assists {
         }
     }
 }
+
+
+// REVIEW: we can make Verus error code. The, we can give Verus error code when failure, enabling further use-cases
+pub fn run_verus_for(verus_exec_path: String, token: SyntaxToken) -> Option<bool> {
+    let mut temp_text_string = String::new();
+    let verify_func_flag = "--verify-function";
+    let verify_root_flag = "--verify-root"; // TODO: figure out the surrounding module of `token`
+    let rlimit_flag = "--rlimit";
+    let rlimit_number = "3";
+    let mut func_name = String::new();
+
+    // get the text of the most grand parent
+    // while doing so, find the surrounding function of this token. (to run "--verify-function")
+    for ancestor in token.parent_ancestors() {
+        temp_text_string = String::from(ancestor.text());
+        match ancestor.kind() {
+            SyntaxKind::FN => {
+                if func_name.len() > 0 { // if already found a function as a parent
+                    dbg!("Not supported: when invoking verus, found func inside func. ");
+                    return None;
+                }
+                let func = ast::Fn::cast(ancestor)?;
+                func_name = func.name()?.to_string();
+            }
+            _ => (),
+        }
+    }
+
+    // REIVEW: instead of writing to a file, consider
+    // `dev/shm` OR `man memfd_create`
+    let mut hasher = DefaultHasher::new();
+    let now = Instant::now();
+    now.hash(&mut hasher);
+
+    let tmp_dir = env::temp_dir();
+    let tmp_name = format!("{}_verus_assert_comment_{:?}_.rs", tmp_dir.display(), hasher.finish());
+    dbg!(&tmp_name);
+    let path = Path::new(&tmp_name);
+    let display = path.display();
+
+    // Open a file in write-only mode, returns `io::Result<File>`
+    let mut file = match File::create(&path) {
+        Err(why) =>{dbg!("couldn't create {}: {}", display, why); return None},
+        Ok(file) => file,
+    };
+
+    // Write the modified verus program to `file`, returns `io::Result<()>`
+    match file.write_all(temp_text_string.as_bytes()) {
+        Err(why) => {dbg!("couldn't write to {}: {}", display, why); return None},
+        Ok(_) => dbg!("successfully wrote to {}", display),
+    };
+
+    dbg!(&verus_exec_path, &path, &verify_root_flag, &verify_func_flag, &func_name, &rlimit_flag, &rlimit_number);
+
+    let output = Command::new(verus_exec_path)
+    .arg(path)
+    .arg(verify_root_flag)
+    .arg(verify_func_flag)
+    .arg(func_name)
+    .arg(rlimit_flag)
+    .arg(rlimit_number)
+    .output();
+
+    match std::fs::remove_file(path) {
+        Err(why) => {dbg!("couldn't remove file {}: {}", path.display(), why);},
+        Ok(_) => {dbg!("successfully removed {}", path.display());},
+    };
+
+    let output = output.ok()?;
+    dbg!(&output);
+    if output.status.success() {
+        return Some(true);
+    } else {
+        // disambiguate verification failure     VS    compile error etc
+        match std::str::from_utf8(&output.stdout) {
+            Ok(out) => {
+                if out.contains("verification results:: verified: 0 errors: 0") {
+                    // failure from other errors. (e.g. compile error)
+                    return None;
+                } else {
+                    // verification failure
+                    return Some(false);
+                }
+            }
+            Err(_) => return None,
+        }
+    }
+}
+
+
+
+
 
 
 
@@ -453,5 +549,6 @@ fn verus_comby1() {
     let deserialized: CombyResult = serde_json::from_str(&json_line).unwrap();
     dbg!(&deserialized);
 }
+
 
 
