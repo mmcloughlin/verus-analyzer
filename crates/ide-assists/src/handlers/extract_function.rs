@@ -1438,6 +1438,7 @@ fn path_expr_from_local(ctx: &AssistContext<'_>, var: Local) -> ast::Expr {
     make::expr_path(make::ext::ident_path(&name))
 }
 
+// "format" TODO(verus)
 fn format_function(
     ctx: &AssistContext<'_>,
     module: hir::Module,

@@ -116,15 +116,12 @@ pub fn assists_with_diagnostic(
     acc.finish()
 }
 
-
+// REVIEW: does these textranges become obsolete once the user edits the file?
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub enum VerusError {
     Pre(PreFailure),
     Post(PostFailure),
     Assert(AssertFailure),
-    // pub typ: VerusErrorType,
-    // pub range: lsp_types::Range,
-    // TODO: add more stuffs that helps
 }
 
 #[derive(Debug, Eq, PartialEq, Clone)]

@@ -142,13 +142,49 @@ impl<'a> AssistContext<'a> {
         self.source_file.syntax().covering_element(self.selection_trimmed())
     }
 
-    // verus
+
+/*
+    Verus
+    
+    HIR semantics related:
+    
+    document  1)API boundary and  2)Struct/enums 
+    Should write about the struct/enum definitions in hir crate
+    
+    how to goto hir def from cst node?   =>   ctx.sema.to_def(node)
+    hot to goto cst node from hir def?    =>   ctx.sema.source(def)
+    how to get type info?                 =>   ctx.sema.type_of_expr(&expr) , ctx.sema.type_of_pat(pat)
+    resolve function at the callsite      =>  ctx.sema.resolve_method_call(&MethodcallExpr)?;
+    resolve path                               ctx.sema.resolve_path(p);  
+
+    CST related
+    
+    document 1)API boundary and 2)struct/enums
+    
+    1)definition(struct/enums)
+    defined at syntax::ast::generated::nodes, which are auto-generated from syntax/rust.ungram (which contains concise "ungrammar")
+    
+    To match a `SyntaxNode`(CST node) against an `ast` type =>  syntax::(lib)::match_ast! 
+    
+    CST-visitor related:
+    use ide_db::syntax_helpers::node_ext::{preorder_expr, walk_expr, walk_pat, walk_patterns_in_expr}
+*/
 
     // REVIEW: trimmed_range?
     pub(crate) fn find_node_at_this_range<N: AstNode>(&self, trimmed_range:TextRange) -> Option<N> {
         find_node_at_range(self.source_file.syntax(), trimmed_range)
     }
-    // TODO: use "flycheck id" and "file id"
+    // just a "typed" duplicate of `find_node_at_this_range`
+    pub(crate) fn find_expr_at_this_range(&self, trimmed_range:TextRange) -> Option<syntax::ast::Expr> {
+        self.find_node_at_this_range::<syntax::ast::Expr>(trimmed_range)
+    }
+    // just a "typed" duplicate of `find_node_at_offset`
+    pub(crate) fn find_surrounding_fn(&self) -> Option<syntax::ast::Fn> {
+        self.find_node_at_offset::<syntax::ast::Fn>()
+    }
+
+    // REVIEW: use "flycheck id" to keep track of verus_error over several run of Verus
+    // REVIEW: when Verus support crate, use "file id" to know which file a verus_error belongs to.
     // TODO: define API functions that returns a list of VerusError 
     //       list of errors of specific conditions: error-type, surrounding function, offset, etc
     pub(crate) fn verus_errors(&self) -> Vec<VerusError> {
@@ -176,6 +212,7 @@ impl<'a> AssistContext<'a> {
     pub(crate) fn node_from_pre_failure(&self, pre: PreFailure) -> Option<syntax::ast::Expr> {
         self.find_node_at_this_range::<syntax::ast::Expr>(pre.failing_pre)
     }
+
     pub(crate) fn node_from_post_failure(&self, post: PostFailure) -> Option<syntax::ast::Expr> {
         self.find_node_at_this_range::<syntax::ast::Expr>(post.failing_post)
     }
@@ -187,7 +224,6 @@ impl<'a> AssistContext<'a> {
     pub(crate) fn textrange_from_comby_pattern(&self, pattern: String) -> Option<Vec<TextRange>> {
         let func : syntax::ast::Fn = self.find_node_at_offset::<syntax::ast::Fn>()?;
         let comby_result = run_comby_for(String::from("/usr/local/bin/comby"), pattern, func.fn_token()?)?;
-        dbg!(&comby_result);        
         let mut text_ranges = vec![];
         for mat in comby_result.matches {
             for env in mat.environment {
@@ -198,9 +234,20 @@ impl<'a> AssistContext<'a> {
                 text_ranges.push(found_range);
             }
         }
-        dbg!(&text_ranges);
         Some(text_ranges)
     }
+
+    pub(crate) fn textranges_in_current_fn(&self, ranges: Vec<TextRange>) -> Option<Vec<TextRange>> {
+        let func = self.find_node_at_offset::<syntax::ast::Fn>()?;
+        let func_range =  func.syntax().text_range();
+        let filtered_ranges = ranges.into_iter().filter(|x| func_range.contains_range(x.clone())).collect();
+        Some(filtered_ranges)
+    }
+
+    // pub(crate) fn exprs_from_textranges(&self, ranges: Vec<TextRange>) -> Option<Vec<TextRange>> {
+    //     let exprs = ranges.into_iter().map(|range| self.find_node_at_this_range::<ast::Expr>(range)?).collect();
+    //     Some(exprs)
+    // }
 
     // pub(crate) fn node_from_comby_pattern(&self, pattern: String) -> Option<syntax::ast::Expr> { // REVIEW: return type?
     // }
@@ -292,34 +339,28 @@ impl Assists {
 
 
 
-// TODO: return vector of textrange instead of one
-// at the call site, filter results with the surrounding function range
+
+// `comby_exec_path` 
+// `comby_pattern`  
+// `token` argument can be any token in the file
+//
+// At the call site, it would be common to filter the textranges using the surrounding function's range
+//
+// REVIEW: for now, we assume a single line result, since we are running Verus/Comby for only one file. 
+// When Verus supports crate, consider returning vector of CombyResult 
 pub fn run_comby_for(comby_exec_path: String, comby_pattern: String, token: SyntaxToken) -> Option<CombyResult> {
     let mut temp_text_string = String::new();
-    let mut func_name = String::new();
+    let provide_rule = "-rule";
     let flag_match_only = "-match-only";
     let flag_json_lines = "-json-lines";
     let flag_match_new_line = "-match-newline-at-toplevel";
 
     // get the text of the most grand parent
-    // while doing so, find the surrounding function of this token. (to run "--verify-function")
     for ancestor in token.parent_ancestors() {
         temp_text_string = String::from(ancestor.text());
-        match ancestor.kind() {
-            SyntaxKind::FN => {
-                if func_name.len() > 0 { // if already found a function as a parent
-                    dbg!("Not supported: when invoking verus, found func inside func. ");
-                    return None;
-                }
-                let func = syntax::ast::Fn::cast(ancestor)?;
-                func_name = func.name()?.to_string();
-            }
-            _ => (),
-        }
     }
 
-    // TODO: instead of writing to a file, consider
-    // `dev/shm` OR `man memfd_create`
+    // REVIEW: instead of writing to a file, consider `dev/shm` OR `man memfd_create`
     let mut hasher = DefaultHasher::new();
     let now = Instant::now();
     now.hash(&mut hasher);
@@ -335,13 +376,12 @@ pub fn run_comby_for(comby_exec_path: String, comby_pattern: String, token: Synt
 
     match file.write_all(temp_text_string.as_bytes()) {
         Err(why) => {dbg!("couldn't write to {}: {}", display, why); return None},
-        Ok(_) => dbg!("successfully wrote to {}", display),
+        Ok(_) => (),
     };
 
-    // dbg!(&comby_exec_path, &comby_pattern, &path, &flag_match_only, &flag_json_lines);
     let output = Command::new(comby_exec_path)
     .arg(comby_pattern)
-    .arg(".")
+    .arg(".") // just a placeholder, since we are using `-match-only` flag.
     .arg(path)
     .arg(flag_match_only)
     .arg(flag_json_lines)
@@ -350,21 +390,18 @@ pub fn run_comby_for(comby_exec_path: String, comby_pattern: String, token: Synt
 
     match std::fs::remove_file(path) {
         Err(why) => {dbg!("couldn't remove file {}: {}", path.display(), why);},
-        Ok(_) => {dbg!("successfully removed {}", path.display());},
+        Ok(_) => (),
     };
 
     let output = output.ok()?;
-    // dbg!(&output);
-    if output.status.success() {
-        dbg!("output stauts success");
-    } else {
-        dbg!("output stauts failure");
+    if !output.status.success() {
+        dbg!("Comby output stauts failure");
         return None;
     }
 
-    // REVIEW: assume only one line result
+    // For now, assume a single line result, since we are running Comby for only one file
     for line in output.stdout.lines() {
-        let line = line.unwrap(); // TODO: change this to ? instead of unwrap. For now, I am keeping it to see if this json parsing works well
+        let line = line.expect("Failed to parse comby result as json"); 
         let deserialized: CombyResult = serde_json::from_str(&line).unwrap();
         return(Some(deserialized));
     }
@@ -376,40 +413,38 @@ pub fn text_range_from(start: u32, end: u32) -> TextRange {
     TextRange::new(TextSize::from(start), TextSize::from(end))
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CombyResult {
-    pub uri: Option<String>, // REVIEW: PATH?
+    pub uri: Option<String>, // REVIEW: PATH
     pub matches: Vec<MatchInfo>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MatchInfo {
     pub range: CombyRange,
     pub environment: Vec<EnvironmentInfo> ,
     pub matched: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EnvironmentInfo {
-    pub variable: String,  // REVIEW: Option<String> ?
+    pub variable: String,  // REVIEW: Option<String>
     pub value: String,
     pub range: CombyRange,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CombyRange {
     pub start: RangeInfo,
     pub end: RangeInfo,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RangeInfo {
     pub offset: u32,
     pub line: u32,
     pub column: u32,
 }
-
-
 
 
 #[test]
