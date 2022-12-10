@@ -320,7 +320,7 @@ impl SourceAnalyzer {
             // Verus-hir
             ast::UnaryOp::Neg => name![neg],
             ast::UnaryOp::BigAnd => name![neg], // FIXME
-            ast::UnaryOp::BigOr => name![neg], // FIXME
+            ast::UnaryOp::BigOr => name![neg],  // FIXME
         };
         let ty = self.ty_of_expr(db, &prefix_expr.expr()?.into())?;
 

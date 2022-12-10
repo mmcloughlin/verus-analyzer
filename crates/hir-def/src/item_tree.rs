@@ -595,7 +595,7 @@ pub struct Function {
     pub(crate) flags: FnFlags,
     // verus
     // pub requires: Vec<ExprId>,
-    // this seems like place to add 
+    // this seems like place to add
     // pub requires
     // pub ensures
     // ...more

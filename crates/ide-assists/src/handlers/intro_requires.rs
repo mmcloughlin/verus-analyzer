@@ -1,16 +1,16 @@
 use ast::make;
 use hir::{db::HirDatabase, PathResolution, Semantics};
 use ide_db::{
-    base_db::{FileId, FileRange, fixture::WithFixture},
+    base_db::{fixture::WithFixture, FileId, FileRange},
     defs::Definition,
+    imports::insert_use::{ImportGranularity, InsertUseConfig},
     search::FileReference,
     syntax_helpers::node_ext::expr_as_name_ref,
     RootDatabase,
-    imports::insert_use::{ImportGranularity, InsertUseConfig},
 };
 use itertools::izip;
 use syntax::{
-    ast::{self, edit_in_place::Indent, HasArgList, PathExpr, make::block_expr_from_predicates},
+    ast::{self, edit_in_place::Indent, make::block_expr_from_predicates, HasArgList, PathExpr},
     ted, AstNode, SyntaxKind,
 };
 
@@ -21,9 +21,8 @@ use crate::{
 
 use hir::db::DefDatabase;
 // use ide_db::base_db::SourceDatabaseExt;
-use ide_db::SnippetCap;
 use crate::AssistConfig;
-
+use ide_db::SnippetCap;
 
 // copied lots of code from inline_call.rs
 
@@ -89,22 +88,23 @@ pub(crate) fn intro_requires(acc: &mut Assists, ctx: &AssistContext<'_>) -> Opti
 
     // for the above function, construct a temporaty semantic database
     let mut temp_fn_str = temp_fn.to_string();
-    temp_fn_str.insert_str(0,"$0");
-    let (mut db, file_with_caret_id, range_or_offset) = RootDatabase::with_range_or_offset(&temp_fn_str);
+    temp_fn_str.insert_str(0, "$0");
+    let (mut db, file_with_caret_id, range_or_offset) =
+        RootDatabase::with_range_or_offset(&temp_fn_str);
     db.set_enable_proc_attr_macros(true);
     let frange = FileRange { file_id: file_with_caret_id, range: range_or_offset.into() };
     let sema = Semantics::new(&db);
     let config = TEST_CONFIG;
     let tmp_ctx = AssistContext::new(sema, &config, frange, vec![]); // TODO(verus): use ctx.diagnostic
     let tmp_foo = tmp_ctx.find_node_at_offset::<ast::Fn>()?;
-    let tmp_body = tmp_foo.body()?;    
+    let tmp_body = tmp_foo.body()?;
     let tmp_param_list = tmp_foo.param_list()?;
     let tmp_function = tmp_ctx.sema.to_def(&tmp_foo)?;
-    let tmp_params = get_fn_params(tmp_ctx.db(), tmp_function , &tmp_param_list)?;
+    let tmp_params = get_fn_params(tmp_ctx.db(), tmp_function, &tmp_param_list)?;
 
     // calculate the location to insert
     let mut where_to_insert = call_info.node.syntax().text_range().start();
-    for ancestor in  call_info.node.syntax().ancestors() {
+    for ancestor in call_info.node.syntax().ancestors() {
         match ancestor.kind() {
             SyntaxKind::EXPR_STMT | SyntaxKind::LET_STMT => {
                 where_to_insert = ancestor.text_range().start();
@@ -115,22 +115,24 @@ pub(crate) fn intro_requires(acc: &mut Assists, ctx: &AssistContext<'_>) -> Opti
         // dbg!(ancestor.kind());
     }
 
-    // register 
+    // register
     acc.add(
         AssistId("intro_requires", AssistKind::RefactorInline),
         "Insert requires clauses of this function call",
         syntax.text_range(),
         |builder| {
-            let replacement = inline(&tmp_ctx.sema, file_with_caret_id, tmp_function, &tmp_body, &tmp_params, &call_info);
-                 builder.insert(
-                    where_to_insert,
-                    replacement,
-                );
+            let replacement = inline(
+                &tmp_ctx.sema,
+                file_with_caret_id,
+                tmp_function,
+                &tmp_body,
+                &tmp_params,
+                &call_info,
+            );
+            builder.insert(where_to_insert, replacement);
         },
     )
 }
-
-
 
 struct CallInfo {
     node: ast::CallableExpr,
@@ -301,7 +303,7 @@ fn inline(
     body.reindent_to(original_indentation);
     body.to_string()
 
-    // if introduced_let_binding {    
+    // if introduced_let_binding {
     //     body.to_string()
     // } else {
     //     for stmt in body.stmt_list().unwrap().clone_for_update().statements() {
@@ -318,9 +320,6 @@ fn path_expr_as_record_field(usage: &PathExpr) -> Option<ast::RecordExprField> {
     let name_ref = path.as_single_name_ref()?;
     ast::RecordExprField::for_name_ref(&name_ref)
 }
-
-
-
 
 #[cfg(test)]
 mod tests {
@@ -379,15 +378,6 @@ proof fn call_fun(a: u32, b: u32)
         );
     }
 
-
-
-
-
-
-
-
-
-    
     #[test]
     fn intro_requires_recursive() {
         check_assist(
@@ -449,6 +439,4 @@ proof fn lemma_fibo_is_monotonic(i: nat, j: nat)
 "#,
         );
     }
-
-
 }

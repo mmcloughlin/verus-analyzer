@@ -26,7 +26,6 @@ fn body_hir(db: &RootDatabase, position: FilePosition) -> Option<String> {
     // }
     // dbg!(&item);
 
-
     let def: DefWithBody = match item {
         ast::Item::Fn(it) => sema.to_def(&it)?.into(),
         ast::Item::Const(it) => sema.to_def(&it)?.into(),

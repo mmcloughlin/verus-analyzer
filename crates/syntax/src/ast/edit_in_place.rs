@@ -620,8 +620,10 @@ impl ast::StmtList {
         match self.tail_expr() {
             Some(e) => {
                 ted::insert(Position::before(e.syntax()), statement.syntax());
-            },
-            None => ted::insert(Position::before(self.r_curly_token().unwrap()), statement.syntax()),
+            }
+            None => {
+                ted::insert(Position::before(self.r_curly_token().unwrap()), statement.syntax())
+            }
         };
     }
     //verus
@@ -629,10 +631,9 @@ impl ast::StmtList {
         match self.tail_expr() {
             Some(e) => {
                 ted::replace(e.syntax(), expr.syntax());
-            },
+            }
             None => ted::insert(Position::before(self.r_curly_token().unwrap()), expr.syntax()),
         };
-        
     }
 }
 

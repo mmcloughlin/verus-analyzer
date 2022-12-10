@@ -71,10 +71,10 @@ mod assist_context;
 mod tests;
 pub mod utils;
 
+pub(crate) use crate::assist_context::{AssistContext, Assists};
 use hir::Semantics;
 use ide_db::{base_db::FileRange, RootDatabase};
 use syntax::TextRange;
-pub(crate) use crate::assist_context::{AssistContext, Assists};
 
 pub use assist_config::AssistConfig;
 pub use ide_db::assists::{
@@ -140,7 +140,6 @@ pub struct PostFailure {
 pub struct AssertFailure {
     pub range: TextRange,
 }
-
 
 mod handlers {
     use crate::{AssistContext, Assists};

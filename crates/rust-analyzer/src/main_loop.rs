@@ -14,8 +14,8 @@ use ide_db::base_db::{SourceDatabase, SourceDatabaseExt, VfsPath};
 use itertools::Itertools;
 use lsp_server::{Connection, Notification, Request};
 use lsp_types::notification::Notification as _;
-use vfs::{ChangeKind, FileId};
 use syntax::{TextRange, TextSize};
+use vfs::{ChangeKind, FileId};
 
 use crate::{
     config::Config,
@@ -28,7 +28,7 @@ use crate::{
     reload::{self, BuildDataProgress, ProjectWorkspaceProgress},
     Result,
 };
-use ide_assists::{VerusError, PreFailure, PostFailure, AssertFailure};
+use ide_assists::{AssertFailure, PostFailure, PreFailure, VerusError};
 
 pub fn main_loop(config: Config, connection: Connection) -> Result<()> {
     tracing::info!("initial config: {:#?}", config);
@@ -292,7 +292,7 @@ impl GlobalState {
 
             if became_quiescent {
                 // Project has loaded properly, kick off initial flycheck
-                self.flycheck.iter().for_each(|x| FlycheckHandle::restart(x,None));
+                self.flycheck.iter().for_each(|x| FlycheckHandle::restart(x, None));
                 if self.config.prefill_caches() {
                     self.prime_caches_queue.request_op("became quiescent".to_string());
                 }
@@ -528,14 +528,22 @@ impl GlobalState {
         }
     }
 
-
-    fn diagnostic_to_verus_err(&mut self, diagnostic: &cargo_metadata::diagnostic::Diagnostic) -> Option<VerusError> {
+    fn diagnostic_to_verus_err(
+        &mut self,
+        diagnostic: &cargo_metadata::diagnostic::Diagnostic,
+    ) -> Option<VerusError> {
         if diagnostic.message.contains("precondition not satisfied") {
             dbg!("pre");
             dbg!(&diagnostic.spans);
-            if diagnostic.spans.len() == 2{
-                let range0 = TextRange::new(TextSize::from(diagnostic.spans[0].byte_start), TextSize::from(diagnostic.spans[0].byte_end));
-                let range1 =  TextRange::new(TextSize::from(diagnostic.spans[1].byte_start), TextSize::from(diagnostic.spans[1].byte_end));
+            if diagnostic.spans.len() == 2 {
+                let range0 = TextRange::new(
+                    TextSize::from(diagnostic.spans[0].byte_start),
+                    TextSize::from(diagnostic.spans[0].byte_end),
+                );
+                let range1 = TextRange::new(
+                    TextSize::from(diagnostic.spans[1].byte_start),
+                    TextSize::from(diagnostic.spans[1].byte_end),
+                );
                 let verr;
                 if diagnostic.spans[0].is_primary {
                     verr = VerusError::Pre(PreFailure { failing_pre: range1, callsite: range0 });
@@ -550,14 +558,22 @@ impl GlobalState {
         } else if diagnostic.message.contains("postcondition not satisfied") {
             dbg!("post");
             dbg!(&diagnostic.spans);
-            if diagnostic.spans.len() == 2{
-                let range0 = TextRange::new(TextSize::from(diagnostic.spans[0].byte_start), TextSize::from(diagnostic.spans[0].byte_end));
-                let range1 =  TextRange::new(TextSize::from(diagnostic.spans[1].byte_start), TextSize::from(diagnostic.spans[1].byte_end));
+            if diagnostic.spans.len() == 2 {
+                let range0 = TextRange::new(
+                    TextSize::from(diagnostic.spans[0].byte_start),
+                    TextSize::from(diagnostic.spans[0].byte_end),
+                );
+                let range1 = TextRange::new(
+                    TextSize::from(diagnostic.spans[1].byte_start),
+                    TextSize::from(diagnostic.spans[1].byte_end),
+                );
                 let verr;
                 if diagnostic.spans[0].is_primary {
-                    verr = VerusError::Post(PostFailure { failing_post: range1, func_body: range0 });
+                    verr =
+                        VerusError::Post(PostFailure { failing_post: range1, func_body: range0 });
                 } else {
-                    verr = VerusError::Post(PostFailure { failing_post: range0, func_body: range1});
+                    verr =
+                        VerusError::Post(PostFailure { failing_post: range0, func_body: range1 });
                 }
                 Some(verr)
             } else {
@@ -568,8 +584,11 @@ impl GlobalState {
             dbg!("assert");
             dbg!("only reading first span now");
             dbg!(&diagnostic.spans);
-            let range =  TextRange::new(TextSize::from(diagnostic.spans[0].byte_start), TextSize::from(diagnostic.spans[0].byte_end));
-            let verr = VerusError::Assert(AssertFailure{range});
+            let range = TextRange::new(
+                TextSize::from(diagnostic.spans[0].byte_start),
+                TextSize::from(diagnostic.spans[0].byte_end),
+            );
+            let verr = VerusError::Assert(AssertFailure { range });
             dbg!(&verr);
             Some(verr)
         } else {
@@ -583,7 +602,9 @@ impl GlobalState {
                 match self.diagnostic_to_verus_err(&diagnostic) {
                     // TODO: should empty verus_error list when "restart flycheck"
                     Some(verr) => self.verus_errors.push(verr),
-                    None => {dbg!("not a verus error");},
+                    None => {
+                        dbg!("not a verus error");
+                    }
                 };
                 // dbg!("propagating:");
                 // dbg!(&diagnostic);
@@ -641,22 +662,33 @@ impl GlobalState {
                         if msg.starts_with("verification results::") {
                             if msg.contains("verified: 0 errors: 0") {
                                 self.send_notification::<lsp_types::notification::ShowMessage>(
-                                    lsp_types::ShowMessageParams { typ: lsp_types::MessageType::WARNING, message: msg},
+                                    lsp_types::ShowMessageParams {
+                                        typ: lsp_types::MessageType::WARNING,
+                                        message: msg,
+                                    },
                                 );
-                            } else 
-                            if msg.contains("errors: 0") {
+                            } else if msg.contains("errors: 0") {
                                 self.send_notification::<lsp_types::notification::ShowMessage>(
-                                    lsp_types::ShowMessageParams { typ: lsp_types::MessageType::INFO, message: msg},
+                                    lsp_types::ShowMessageParams {
+                                        typ: lsp_types::MessageType::INFO,
+                                        message: msg,
+                                    },
                                 );
                             } else {
                                 self.send_notification::<lsp_types::notification::ShowMessage>(
-                                    lsp_types::ShowMessageParams { typ: lsp_types::MessageType::ERROR, message: msg},
+                                    lsp_types::ShowMessageParams {
+                                        typ: lsp_types::MessageType::ERROR,
+                                        message: msg,
+                                    },
                                 );
                             }
                             return;
                         } else {
                             self.send_notification::<lsp_types::notification::ShowMessage>(
-                                lsp_types::ShowMessageParams { typ: lsp_types::MessageType::WARNING, message: msg},
+                                lsp_types::ShowMessageParams {
+                                    typ: lsp_types::MessageType::WARNING,
+                                    message: msg,
+                                },
                             );
                             // self.show_and_log_error(
                             //     "unexpected verus result report".to_string(),
@@ -904,7 +936,7 @@ impl GlobalState {
                                 project_model::ProjectWorkspace::DetachedFiles { .. } => false,
                             });
 
-                        // dbg!("make cargo check here2");    
+                        // dbg!("make cargo check here2");
                         // Find and trigger corresponding flychecks
                         for flycheck in &this.flycheck {
                             for (id, _) in workspace_ids.clone() {
@@ -912,7 +944,9 @@ impl GlobalState {
                                     updated = true;
                                     // this is what triggers cargo check
                                     // dbg!(params.text_document.uri.clone().to_string());
-                                    flycheck.restart(Some(params.text_document.uri.clone().path().to_string()));
+                                    flycheck.restart(Some(
+                                        params.text_document.uri.clone().path().to_string(),
+                                    ));
                                     continue;
                                 }
                             }
@@ -932,7 +966,8 @@ impl GlobalState {
                 if !updated {
                     for flycheck in &this.flycheck {
                         // flycheck.restart(None);
-                        flycheck.restart(Some(params.text_document.uri.clone().path().to_string())); //FIXME
+                        flycheck.restart(Some(params.text_document.uri.clone().path().to_string()));
+                        //FIXME
                     }
                 }
                 Ok(())

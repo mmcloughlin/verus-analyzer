@@ -30,7 +30,7 @@ pub(super) fn expr_stmt(
             m
         });
         let assert_expr = verus::assert(p, m);
-        return Some((assert_expr,  BlockLike::NotBlock));
+        return Some((assert_expr, BlockLike::NotBlock));
     }
     let r = Restrictions { forbid_structs: false, prefer_stmt: true };
     expr_bp(p, m, r, 1)
@@ -75,7 +75,7 @@ pub(super) fn stmt(p: &mut Parser<'_>, semicolon: Semicolon) {
     if p.at(T![assert]) {
         let m1 = p.start();
         verus::assert(p, m1);
-        if p.at(T![;]){
+        if p.at(T![;]) {
             p.expect(T![;]);
         }
         m.complete(p, EXPR_STMT);
@@ -176,7 +176,6 @@ pub(super) fn expr_block_contents(p: &mut Parser<'_>) {
         mm.abandon(p);
     }
 
-    
     attributes::inner_attrs(p);
 
     while !p.at(EOF) && !p.at(T!['}']) {
@@ -370,7 +369,8 @@ fn lhs(p: &mut Parser<'_>, r: Restrictions) -> Option<(CompletedMarker, BlockLik
         //     !!true;
         //     --1;
         // }
-        T![*] | T![!] | T![-] => {  //
+        T![*] | T![!] | T![-] => {
+            //
             m = p.start();
             p.bump_any();
             PREFIX_EXPR

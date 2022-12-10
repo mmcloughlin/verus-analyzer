@@ -35,7 +35,7 @@ impl TokenSet {
 const fn mask(kind: SyntaxKind) -> (u128, u128) {
     let k = kind as usize;
     if k >= 128 {
-        (1u128 << (k - 128) ,0u128)
+        (1u128 << (k - 128), 0u128)
     } else {
         (0, 1u128 << k)
     }
@@ -47,6 +47,6 @@ fn token_set_works_for_tokens() {
     let ts = TokenSet::new(&[EOF, SHEBANG]);
     assert!(ts.contains(EOF));
     assert!(ts.contains(SHEBANG));
-    // assert!(ts.contains(TYPE_ALIAS)); 
+    // assert!(ts.contains(TYPE_ALIAS));
     assert!(!ts.contains(PLUS));
 }

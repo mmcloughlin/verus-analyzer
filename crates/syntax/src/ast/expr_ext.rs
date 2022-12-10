@@ -333,7 +333,10 @@ impl ast::Literal {
         match token.kind() {
             T![true] => LiteralKind::Bool(true),
             T![false] => LiteralKind::Bool(false),
-            _ => {dbg!(token.kind()); unreachable!()},
+            _ => {
+                dbg!(token.kind());
+                unreachable!()
+            }
         }
     }
 }

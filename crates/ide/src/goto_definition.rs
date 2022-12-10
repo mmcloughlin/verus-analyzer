@@ -201,7 +201,6 @@ verus! {
         );
     }
 
-
     #[test]
     fn goto_def_verus() {
         check(
@@ -259,11 +258,6 @@ verus! {
 "#,
         );
     }
-
-
-
-
-
 
     #[test]
     fn goto_def_if_items_same_name() {

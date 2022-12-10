@@ -318,7 +318,6 @@ pub fn record_field(
     ast_from_text(&format!("struct S {{ {visibility}{name}: {ty}, }}"))
 }
 
-
 pub fn block_expr(
     stmts: impl IntoIterator<Item = ast::Stmt>,
     tail_expr: Option<ast::Expr>,
@@ -335,9 +334,7 @@ pub fn block_expr(
 }
 
 // verus
-pub fn block_expr_from_predicates(
-    exp_vec: &Vec<ast::Expr>,
-) -> ast::BlockExpr {
+pub fn block_expr_from_predicates(exp_vec: &Vec<ast::Expr>) -> ast::BlockExpr {
     let mut buf = "{\n".to_string();
     for e in exp_vec {
         format_to!(buf, "    assert({e});\n");
@@ -345,7 +342,6 @@ pub fn block_expr_from_predicates(
     buf += "}";
     ast_from_text(&format!("fn f() {buf}"))
 }
-
 
 /// Ideally this function wouldn't exist since it involves manual indenting.
 /// It differs from `make::block_expr` by also supporting comments.
@@ -437,13 +433,10 @@ pub fn expr_if(
     expr_from_text(&format!("if {condition} {then_branch} {else_branch}"))
 }
 
-pub fn expr_assert_by(
-    condition: ast::Expr,
-) -> ast::Expr {
+pub fn expr_assert_by(condition: ast::Expr) -> ast::Expr {
     // dbg!(&format!("assert({condition}) by {{\n assert({condition}); \n}}"));
     ast_from_text(&format!("assert({condition}) by {{ assert({condition}); }}"))
 }
-
 
 pub fn expr_for_loop(pat: ast::Pat, expr: ast::Expr, block: ast::BlockExpr) -> ast::Expr {
     expr_from_text(&format!("for {pat} in {expr} {block}"))

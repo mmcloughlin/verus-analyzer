@@ -45,7 +45,6 @@ pub enum LogicOp {
     NeEq,   // !==  Verus
     EqEqEq, // ===  Verus
     Equiv,  // <==> Verus
-    
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]

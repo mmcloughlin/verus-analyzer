@@ -556,12 +556,13 @@ impl ExprCollector<'_> {
             // Verus-TODO
             ast::Expr::AssertExpr(e) => {
                 let condition = self.collect_expr_opt(e.expr());
-                self.alloc_expr(Expr::Assert { condition }, syntax_ptr)},
+                self.alloc_expr(Expr::Assert { condition }, syntax_ptr)
+            }
             ast::Expr::AssumeExpr(e) => {
                 let condition = self.collect_expr_opt(e.expr());
-                self.alloc_expr(Expr::Assume { condition }, syntax_ptr)},
+                self.alloc_expr(Expr::Assume { condition }, syntax_ptr)
+            }
             ast::Expr::ViewExpr(_) => self.alloc_expr(Expr::Missing, syntax_ptr),
-            
         })
     }
 

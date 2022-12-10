@@ -79,7 +79,7 @@ pub(super) fn atom_expr(
     //verus #[triggers]
     // attributes::inner_attrs(p);
     // attributes::outer_attrs(p);
- 
+
     let la = p.nth(1);
     let done = match p.current() {
         T!['('] => tuple_expr(p),
@@ -106,7 +106,6 @@ pub(super) fn atom_expr(
         T![continue] => continue_expr(p),
         T![break] => break_expr(p, r),
         // T![requires] => requires(p),
-
         LIFETIME_IDENT if la == T![:] => {
             let m = p.start();
             label(p);
@@ -161,12 +160,13 @@ pub(super) fn atom_expr(
             m.complete(p, BLOCK_EXPR)
         }
 
-        T![static] | T![async] | T![move] | T![|] | T![forall] | T![exists] | T![choose] => closure_expr(p),
+        T![static] | T![async] | T![move] | T![|] | T![forall] | T![exists] | T![choose] => {
+            closure_expr(p)
+        }
         T![for] if la == T![<] => closure_expr(p),
         T![for] => for_expr(p, None),
 
         // TODO: put assert parsing here?
-
         _ => {
             // dbg!("hey atom_expr");
             // dbg!(p.current());

@@ -80,10 +80,10 @@ pub enum Expr {
     Missing,
     // verus
     // verus-hir for exprs
-    Assert{
+    Assert {
         condition: ExprId,
     },
-    Assume{
+    Assume {
         condition: ExprId,
     },
     Path(Path),

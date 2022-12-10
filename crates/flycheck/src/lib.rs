@@ -80,8 +80,14 @@ impl FlycheckHandle {
     pub fn restart(&self, filepath: Option<String>) {
         // dbg!("restart for", &self.id);
         match filepath {
-            Some(path) => {dbg!("verus"); self.sender.send(Restart::Verus(path)).unwrap()},
-            None => {dbg!("not verus"); self.sender.send(Restart::Yes).unwrap();}, // normal cargo check
+            Some(path) => {
+                dbg!("verus");
+                self.sender.send(Restart::Verus(path)).unwrap()
+            }
+            None => {
+                dbg!("not verus");
+                self.sender.send(Restart::Yes).unwrap();
+            } // normal cargo check
         };
     }
 
@@ -150,10 +156,9 @@ struct FlycheckActor {
     /// have to wrap sub-processes output handling in a thread and pass messages
     /// back over a channel.
     cargo_handle: Option<CargoHandle>,
-
     // verus
     // running Verus for all file takes too much time
-    // only run Verus for the saved file 
+    // only run Verus for the saved file
     // pub recent_saved_file: uri;
 }
 
@@ -223,8 +228,6 @@ impl FlycheckActor {
                     self.cancel_check_process();
                     while let Ok(_) = inbox.recv_timeout(Duration::from_millis(50)) {}
 
-
-
                     let command = self.check_command(Some(path.clone()));
 
                     // insert file name here
@@ -249,7 +252,7 @@ impl FlycheckActor {
                         }
                     }
                 }
-                
+
                 Event::CheckEvent(None) => {
                     // dbg!("FlycheckActor fun checkevent");
                     tracing::debug!(flycheck_id = self.id, "flycheck finished");
@@ -300,7 +303,7 @@ impl FlycheckActor {
         }
     }
 
-    fn check_command(&self, filepath:Option<String>) -> Command {
+    fn check_command(&self, filepath: Option<String>) -> Command {
         let mut cmd = match &self.config {
             FlycheckConfig::CargoCommand {
                 command,
@@ -312,7 +315,7 @@ impl FlycheckActor {
                 features,
             } => {
                 // dbg!("normal command");
-                
+
                 let mut cmd = Command::new(toolchain::cargo());
                 cmd.arg(command);
                 cmd.current_dir(&self.workspace_root);
@@ -346,11 +349,14 @@ impl FlycheckActor {
                     Some(path) => {
                         //  insert current-saved filename here
                         let mut args = args.to_vec();
-                        args = args.iter().map(|x| {if x == "${file}"  {path.clone()} else {x.clone()} }).collect();
+                        args = args
+                            .iter()
+                            .map(|x| if x == "${file}" { path.clone() } else { x.clone() })
+                            .collect();
                         let mut cmd = Command::new(command);
                         cmd.args(args);
                         cmd
-                    },
+                    }
                     None => {
                         // lets do simple cargo check
                         let mut cmd = Command::new(toolchain::cargo());
@@ -408,9 +414,10 @@ impl CargoHandle {
         let _ = self.child.kill();
         let exit_status = self.child.wait()?;
         let (read_at_least_one_message, error) = self.thread.join()?;
- 
+
         // when Verus verification fails, it terminates with compiler error
-        if read_at_least_one_message {//|| exit_status.success() 
+        if read_at_least_one_message {
+            //|| exit_status.success()
             Ok(())
         } else {
             Err(io::Error::new(io::ErrorKind::Other, format!(
@@ -442,8 +449,8 @@ impl CargoActor {
         // simply skip a line if it doesn't parse, which just ignores any
         // erroneous output.
 
-        let error = String::new(); //FIXME proper error 
-        // let mut error = String::new();
+        let error = String::new(); //FIXME proper error
+                                   // let mut error = String::new();
         let mut read_at_least_one_stdout = false;
         let mut read_at_least_one_stderr = false;
         let mut reported_verus_result_stdout = false;
@@ -487,7 +494,9 @@ impl CargoActor {
                     dbg!(&line);
                     record_stdout.push(line.to_string());
                     // report verification result
-                    if line.starts_with("verification results::") && !line.contains("verified: 0 errors: 0")  {
+                    if line.starts_with("verification results::")
+                        && !line.contains("verified: 0 errors: 0")
+                    {
                         dbg!("generating verus result stdout", &line);
                         self.sender.send(CargoMessage::VerusResult(line.to_string())).unwrap();
                         reported_verus_result_stdout = true;
@@ -530,7 +539,9 @@ impl CargoActor {
                     // report verification result
                     dbg!(&line);
                     record_stderr.push(line.to_string());
-                    if line.starts_with("verification results::") && !line.contains("verified: 0 errors: 0") {
+                    if line.starts_with("verification results::")
+                        && !line.contains("verified: 0 errors: 0")
+                    {
                         dbg!("generating verus result stderr", &line);
                         self.sender.send(CargoMessage::VerusResult(line.to_string())).unwrap();
                         reported_verus_result_stderr = true;
@@ -549,15 +560,26 @@ impl CargoActor {
         // dbg!(&reported_verus_result ,&read_at_least_one_message);
         dbg!(&record_stdout);
         dbg!(&record_stderr);
-        if !reported_verus_result{
+        if !reported_verus_result {
             dbg!("generating missing verus result");
             let missing_result = "Verus Failed. Diagnostic errors can be found at View>Problems on VS Code. Non-diagnostic messages are the following (if there's any).\n".to_string();
-            let report_string = format!("{}\n{}\n{}\n", missing_result, record_stdout.join("\n"), record_stderr.join("\n"));
+            let report_string = format!(
+                "{}\n{}\n{}\n",
+                missing_result,
+                record_stdout.join("\n"),
+                record_stderr.join("\n")
+            );
             self.sender.send(CargoMessage::VerusResult(report_string)).unwrap();
         }
         match output {
-            Ok(_) => {dbg!("cargo actor output OK"); Ok((read_at_least_one_message, error))},
-            Err(e) =>{dbg!("cargo actor output Err"); Err(io::Error::new(e.kind(), format!("{:?}: {}", e, error)))},
+            Ok(_) => {
+                dbg!("cargo actor output OK");
+                Ok((read_at_least_one_message, error))
+            }
+            Err(e) => {
+                dbg!("cargo actor output Err");
+                Err(io::Error::new(e.kind(), format!("{:?}: {}", e, error)))
+            }
         }
     }
 }

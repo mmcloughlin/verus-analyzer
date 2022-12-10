@@ -1,11 +1,9 @@
 use crate::{AssistContext, AssistId, AssistKind, Assists};
-use ide_db::{
-    syntax_helpers::node_ext::{for_each_tail_expr, walk_expr},
-};
+use ide_db::syntax_helpers::node_ext::{for_each_tail_expr, walk_expr};
 
 use syntax::{
     ast::{self, Expr},
-    match_ast, AstNode, TextRange
+    match_ast, AstNode, TextRange,
 };
 
 // copied from `wrap_return_type_in_result`
@@ -25,13 +23,12 @@ fn tail_cb_impl(acc: &mut Vec<ast::Expr>, e: &ast::Expr) {
     }
 }
 
-
 pub(crate) fn intro_failing_ensures(acc: &mut Assists, ctx: &AssistContext<'_>) -> Option<()> {
     // trigger on "ensures"
     let func = ctx.find_node_at_offset::<ast::Fn>()?;
     let func_range: TextRange = func.syntax().text_range();
     let body = func.body()?;
-    let ensures = func.ensures_clause()?; 
+    let ensures = func.ensures_clause()?;
     let ensures_keyword = ensures.ensures_token()?;
     let ensures_range = ensures_keyword.text_range();
     let cursor_in_range = ensures_range.contains_range(ctx.selection_trimmed());
@@ -55,33 +52,36 @@ pub(crate) fn intro_failing_ensures(acc: &mut Assists, ctx: &AssistContext<'_>) 
     // calcaulte diff
     // first, check if the function returns something (to confirm if I need to introduce let-binding)
     // fn :[_] -> (:[ret]: :[_]) :[_] {:[_]}
-    // fn :[_] -> (:[ret]::[_]) :[_] 
+    // fn :[_] -> (:[ret]::[_]) :[_]
     // TODO: let's just use CST API for getting return value. making comby search work as expected seems harder than looking up the CST API
-    // TODO: might worth replacing it with SSR thing 
-    let ret_ranges: Vec<TextRange>= ctx.textrange_from_comby_pattern(String::from("fn :[_] -> (:[ret]::[_]) :[_]"))?;    
+    // TODO: might worth replacing it with SSR thing
+    let ret_ranges: Vec<TextRange> =
+        ctx.textrange_from_comby_pattern(String::from("fn :[_] -> (:[ret]::[_]) :[_]"))?;
     dbg!(&ret_ranges);
     dbg!(&func_range);
-    let ret_range: Vec<TextRange> = ret_ranges.into_iter().filter(|x| func_range.contains_range(x.clone())).collect();
+    let ret_range: Vec<TextRange> =
+        ret_ranges.into_iter().filter(|x| func_range.contains_range(x.clone())).collect();
     dbg!(ret_range.len());
     if ret_range.len() > 1 {
         return None; // unexpected error
     }
-    let mut ret_name:String = String::new();
+    let mut ret_name: String = String::new();
     if ret_range.len() == 1 {
         let ret_name_expr = ctx.find_node_at_this_range::<ast::Pat>(ret_range[0])?;
-        ret_name = format!("{}",ret_name_expr);
+        ret_name = format!("{}", ret_name_expr);
         dbg!(&ret_name);
     }
     let failed_post_concat = failed_posts.concat();
 
-
     // find the offset location of function exit
-    let exit_ranges: Vec<TextRange>= ctx.textrange_from_comby_pattern(String::from("fn :[_]{:[body]}"))?;
-    let exit_range: Vec<TextRange> = exit_ranges.into_iter().filter(|x| func_range.contains_range(x.clone())).collect();
+    let exit_ranges: Vec<TextRange> =
+        ctx.textrange_from_comby_pattern(String::from("fn :[_]{:[body]}"))?;
+    let exit_range: Vec<TextRange> =
+        exit_ranges.into_iter().filter(|x| func_range.contains_range(x.clone())).collect();
     if exit_range.len() > 1 {
         return None; // unexpected error
     }
-    
+
     // TODO: formatting -- rustfmt?
     acc.add(AssistId("intro_failing_ensures", AssistKind::RefactorRewrite), "Copy FAILED ensures clauses to the end", ensures_range, |edit| {
         if ret_range.len() == 0 {
@@ -116,8 +116,6 @@ pub(crate) fn intro_failing_ensures(acc: &mut Assists, ctx: &AssistContext<'_>) 
         };
     })
 }
-
-
 
 #[cfg(test)]
 mod tests {
@@ -158,7 +156,6 @@ proof fn my_proof_fun(x: int, y: int)
         );
     }
 
-
     #[test]
     fn intro_ensure_ret_arg() {
         check_assist(
@@ -195,7 +192,6 @@ proof fn my_proof_fun(x: int, y: int) -> (sum: int)
 "#,
         );
     }
-
 
     #[test]
     fn intro_ensure_fibo() {
@@ -243,5 +239,4 @@ proof fn lemma_fibo_is_monotonic(i: nat, j: nat)
 "#,
         );
     }
-
 }

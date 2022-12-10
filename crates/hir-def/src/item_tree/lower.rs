@@ -253,7 +253,7 @@ impl<'a> Ctx<'a> {
 
     // verus
     // this is the way
-    // CST -> ra-HIR 
+    // CST -> ra-HIR
     // add requires/ensures
     fn lower_function(&mut self, func: &ast::Fn) -> Option<FileItemTreeId<Function>> {
         let visibility = self.lower_visibility(func);

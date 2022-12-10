@@ -357,17 +357,13 @@ fn api_walkthrough() {
     assert_eq!(exprs_cast, exprs_visit);
 }
 
-
-
-
 // Do "cargo test --package syntax --lib -- tests"
 
 #[test]
 fn verus_walkthrough1() {
     use ast::{HasModuleItem, HasName};
 
-    let source_code = 
-    "verus!{
+    let source_code = "verus!{
         proof fn my_proof_fun(x: int, y: int)
             requires
                 x < 100,
@@ -393,14 +389,11 @@ fn verus_walkthrough1() {
     }
 }
 
-
-
 #[test]
 fn verus_walkthrough1_1() {
     use ast::{HasModuleItem, HasName};
 
-    let source_code = 
-    "
+    let source_code = "
 verus! {
     spec fn identity(x: u32) -> u32 {
         x
@@ -434,14 +427,11 @@ verus! {
     }
 }
 
-
-
 #[test]
 fn verus_walkthrough2() {
     use ast::{HasModuleItem, HasName};
 
-    let source_code = 
-    "verus!{
+    let source_code = "verus!{
         proof fn my_proof_fun(x: int, y: int) -> (sum: int)
             requires
                 x < 100,
@@ -481,15 +471,12 @@ fn verus_walkthrough2() {
     for item in file.items() {
         dbg!(&item);
     }
-
 }
-
 
 #[test]
 fn verus_walkthrough3() {
     use ast::{HasModuleItem, HasName};
-    let source_code = 
-    "verus!{
+    let source_code = "verus!{
         proof fn test5_bound_checking(x: u32, y: u32, z: u32)
             requires
                 x <= 0xffff,
@@ -522,13 +509,11 @@ fn verus_walkthrough3() {
     }
 }
 
-
 #[test]
 #[ignore = "not yet implemented"] // TODO: assume attributes
 fn verus_walkthrough4() {
     use ast::{HasModuleItem, HasName};
-    let source_code = 
-    "verus!{
+    let source_code = "verus!{
         fn test_assert_forall_by() {
             assert forall|x: int, y: int| f1(x) + f1(y) == x + y + 2 by {
                 reveal(f1);
@@ -568,7 +553,6 @@ fn verus_walkthrough4() {
     }
 }
 
-
 #[test]
 fn verus_walkthrough5() {
     use ast::{HasModuleItem, HasName};
@@ -592,12 +576,10 @@ fn verus_walkthrough5() {
     }
 }
 
-
 #[test]
 fn verus_walkthrough6() {
     use ast::{HasModuleItem, HasName};
-    let source_code = 
-    "verus!{
+    let source_code = "verus!{
         proof fn my_proof_fun(x: int, y: int) -> (sum: int)
             requires
                 x < 100,
@@ -656,12 +638,10 @@ fn verus_walkthrough7() {
     }
 }
 
-
 #[test]
 fn verus_walkthrough8() {
     use ast::{HasModuleItem, HasName};
-    let source_code = 
-    "verus!{
+    let source_code = "verus!{
     fn test_my_funs2(
         a: u32, // exec variable
         b: u32, // exec variable
@@ -690,8 +670,7 @@ fn verus_walkthrough8() {
 #[test]
 fn verus_walkthrough9_0() {
     use ast::{HasModuleItem, HasName};
-    let source_code = 
-    "verus!{
+    let source_code = "verus!{
     fn test_is_variant_1(v: Vehicle2<u64>) {
         match v {
             Vehicle2::Car(_) => assert(v.is_Car()),
@@ -711,13 +690,10 @@ fn verus_walkthrough9_0() {
     }
 }
 
-
-
 #[test]
 fn verus_walkthrough9() {
     use ast::{HasModuleItem, HasName};
-    let source_code = 
-    "verus!{
+    let source_code = "verus!{
     proof fn test_tracked(
         tracked w: int,
         tracked x: int,
@@ -738,13 +714,10 @@ fn verus_walkthrough9() {
     }
 }
 
-
- 
 #[test]
 fn verus_walkthrough10_0() {
     use ast::{HasModuleItem, HasName};
-    let source_code = 
-    "verus!{
+    let source_code = "verus!{
     pub(crate) proof fn binary_ops<A>(a: A, x: int) {
         assert(2 + 2 !== 3);
         assert(a === a);
@@ -762,12 +735,11 @@ fn verus_walkthrough10_0() {
         dbg!(&item);
     }
 }
- 
+
 #[test]
 fn verus_walkthrough10_1() {
     use ast::{HasModuleItem, HasName};
-    let source_code = 
-    "verus!{
+    let source_code = "verus!{
     spec fn ccc(x: int, y: int) -> bool {
         &&& if false {
                 true
@@ -787,12 +759,10 @@ fn verus_walkthrough10_1() {
     }
 }
 
-
 #[test]
 fn verus_walkthrough10_2() {
     use ast::{HasModuleItem, HasName};
-    let source_code = 
-    "verus!{
+    let source_code = "verus!{
     spec fn complex_conjuncts(x: int, y: int) -> bool {
         let b = x < y;
         &&& b
@@ -817,12 +787,10 @@ fn verus_walkthrough10_2() {
     }
 }
 
-
 #[test]
 fn verus_walkthrough10() {
     use ast::{HasModuleItem, HasName};
-    let source_code = 
-    "verus!{
+    let source_code = "verus!{
     fn test_views() {
         let mut v: Vec<u8> = Vec::new();
         v.push(10);
@@ -843,15 +811,11 @@ fn verus_walkthrough10() {
         dbg!(&item);
     }
 }
- 
 
-
- 
 #[test]
 fn verus_walkthrough11() {
     use ast::{HasModuleItem, HasName};
-    let source_code = 
-    "verus!{
+    let source_code = "verus!{
 fn binary_search(v: &Vec<u64>, k: u64) -> (r: usize)
     requires
         forall|i:int, j:int| 0 <= i <= j < v.len() ==> v[i] <= v[j],
@@ -892,13 +856,11 @@ fn binary_search(v: &Vec<u64>, k: u64) -> (r: usize)
         dbg!(&item);
     }
 }
- 
 
 #[test]
 fn verus_walkthrough12() {
     use ast::{HasModuleItem, HasName};
-    let source_code = 
-    "verus!{
+    let source_code = "verus!{
 fn pop_test(t: Vec<u64>)
 requires
     t.len() > 0,
@@ -921,13 +883,11 @@ assert(forall|i: int| #![auto] 0 <= i < t.len() ==> uninterp_fn(t[i]));
         dbg!(&item);
     }
 }
- 
 
 #[test]
 fn verus_walkthrough13() {
     use ast::{HasModuleItem, HasName};
-    let source_code = 
-    "verus!{
+    let source_code = "verus!{
 
     proof fn arith_sum_int_nonneg(i: nat)
         ensures
@@ -959,12 +919,11 @@ fn verus_walkthrough13() {
         dbg!(&item);
     }
 }
- 
+
 #[test]
 fn verus_walkthrough14() {
     use ast::{HasModuleItem, HasName};
-    let source_code = 
-    "verus!{
+    let source_code = "verus!{
 fn exec_with_decreases(n: u64) -> u64
     decreases 100 - n,
 {
@@ -984,7 +943,7 @@ fn exec_with_decreases(n: u64) -> u64
         dbg!(&item);
     }
 }
- 
+
 #[test]
 fn verus_walkthrough15() {
     use ast::{HasModuleItem, HasName};
@@ -1026,7 +985,7 @@ spec(checked) fn my_spec_fun2(x: int, y: int) -> int
 //     {
 //         x + y
 //     }
-    
+
 //     proof fn my_proof_fun(x: int, y: int) -> (sum: int)
 //         requires
 //             x < 100,
@@ -1036,7 +995,7 @@ spec(checked) fn my_spec_fun2(x: int, y: int) -> int
 //     {
 //         x + y
 //     }
-    
+
 //     spec fn my_spec_fun(x: int, y: int) -> int
 //         recommends
 //             x < 100,
@@ -1044,7 +1003,7 @@ spec(checked) fn my_spec_fun2(x: int, y: int) -> int
 //     {
 //         x + y
 //     }
-    
+
 //     /// exec code cannot directly call proof functions or spec functions.
 //     /// However, exec code can contain proof blocks (proof { ... }),
 //     /// which contain proof code.
@@ -1061,7 +1020,7 @@ spec(checked) fn my_spec_fun2(x: int, y: int) -> int
 //             my_proof_fun(u / 2, y as int); // allowed in proof code
 //         }
 //     }
-    
+
 //     /// spec functions with pub or pub(...) must specify whether the body of the function
 //     /// should also be made publicly visible (open function) or not visible (closed function).
 //     pub open spec fn my_pub_spec_fun1(x: int, y: int) -> int {
@@ -1086,7 +1045,7 @@ spec(checked) fn my_spec_fun2(x: int, y: int) -> int
 //         // function visible to crate, body visible to module
 //         x / 2 + y / 2
 //     }
-    
+
 //     /// Recursive functions must have decreases clauses so that Verus can verify that the functions
 //     /// terminate.
 //     fn test_rec(x: u64, y: u64)
@@ -1099,7 +1058,7 @@ spec(checked) fn my_spec_fun2(x: int, y: int) -> int
 //             test_rec(x - 1, y + 1);
 //         }
 //     }
-    
+
 //     /// Multiple decreases clauses are ordered lexicographically, so that later clauses may
 //     /// increase when earlier clauses decrease.
 //     spec fn test_rec2(x: int, y: int) -> int
@@ -1113,7 +1072,7 @@ spec(checked) fn my_spec_fun2(x: int, y: int) -> int
 //             3
 //         }
 //     }
- //     /// variables may be exec, tracked, or ghost
+//     /// variables may be exec, tracked, or ghost
 //     ///   - exec: compiled
 //     ///   - tracked: erased before compilation, checked for lifetimes (advanced feature, discussed later)
 //     ///   - ghost: erased before compilation, no lifetime checking, can create default value of any type
@@ -1136,27 +1095,27 @@ spec(checked) fn my_spec_fun2(x: int, y: int) -> int
 //             my_proof_fun(u / 2, b as int); // my_proof_fun(x, y) takes ghost parameters x and y
 //         }
 //     }
-    
+
 //     /// assume and assert are treated as proof code even outside of proof blocks.
 //     /// "assert by" may be used to provide proof code that proves the assertion.
 //     #[verifier(opaque)]
 //     spec fn f1(i: int) -> int {
 //         i + 1
 //     }
-    
+
 //     fn assert_by_test() {
 //         assert(f1(3) > 3) by {
 //             reveal(f1); // reveal f1's definition just inside this block
 //         }
 //         assert(f1(3) > 3);
 //     }
-    
+
 //     /// "assert by" can also invoke specialized provers for bit-vector reasoning or nonlinear arithmetic.
 //     fn assert_by_provers(x: u32) {
 //         assert(x ^ x == 0u32) by(bit_vector);
 //         assert(2 <= x && x < 10 ==> x * x > x) by(nonlinear_arith);
 //     }
-    
+
 //     /// "assert by" can use nonlinear_arith with proof code,
 //     /// where "requires" clauses selectively make facts available to the proof code.
 //     proof fn test5_bound_checking(x: u32, y: u32, z: u32)
@@ -1174,14 +1133,14 @@ spec(checked) fn my_spec_fun2(x: int, y: int) -> int
 //             assert(x * z <= 0xffff * 0xffff);
 //         }
 //     }
-    
+
 //     /// The syntax for forall and exists quantifiers is based on closures:
 //     fn test_quantifier() {
 //         assert(forall|x: int, y: int| 0 <= x < 100 && 0 <= y < 100 ==> my_spec_fun(x, y) >= x);
 //         assert(my_spec_fun(10, 20) == 30);
 //         assert(exists|x: int, y: int| my_spec_fun(x, y) == 30);
 //     }
-    
+
 //     /// "assert forall by" may be used to prove foralls:
 //     fn test_assert_forall_by() {
 //         assert forall|x: int, y: int| f1(x) + f1(y) == x + y + 2 by {
@@ -1189,7 +1148,7 @@ spec(checked) fn my_spec_fun2(x: int, y: int) -> int
 //         }
 //         assert(f1(1) + f1(2) == 5);
 //         assert(f1(3) + f1(4) == 9);
-    
+
 //         // to prove forall|...| P ==> Q, write assert forall|...| P implies Q by {...}
 //         assert forall|x: int| x < 10 implies f1(x) < 11 by {
 //             assert(x < 10);
@@ -1198,7 +1157,7 @@ spec(checked) fn my_spec_fun2(x: int, y: int) -> int
 //         }
 //         assert(f1(3) < 11);
 //     }
-    
+
 //     /// To extract ghost witness values from exists, use choose:
 //     fn test_choose() {
 //         assume(exists|x: int| f1(x) == 10);
@@ -1206,14 +1165,14 @@ spec(checked) fn my_spec_fun2(x: int, y: int) -> int
 //             let x_witness = choose|x: int| f1(x) == 10;
 //             assert(f1(x_witness) == 10);
 //         }
-    
+
 //         assume(exists|x: int, y: int| f1(x) + f1(y) == 30);
 //         proof {
 //             let (x_witness, y_witness): (int, int) = choose|x: int, y: int| f1(x) + f1(y) == 30;
 //             assert(f1(x_witness) + f1(y_witness) == 30);
 //         }
 //     }
-    
+
 //     /// To manually specify a trigger to use for the SMT solver to match on when instantiating a forall
 //     /// or proving an exists, use #[trigger]:
 //     fn test_single_trigger1() {
@@ -1226,7 +1185,7 @@ spec(checked) fn my_spec_fun2(x: int, y: int) -> int
 //             #[trigger] f1(x) < 100 && #[trigger] f1(y) < 100 ==> my_spec_fun(x, y) >= x
 //         );
 //     }
-    
+
 //     /// To manually specify multiple triggers, use #![trigger]:
 //     fn test_multiple_triggers() {
 //         // Use both [my_spec_fun(x, y)] and [f1(x), f1(y)] as triggers
@@ -1236,7 +1195,7 @@ spec(checked) fn my_spec_fun2(x: int, y: int) -> int
 //             f1(x) < 100 && f1(y) < 100 ==> my_spec_fun(x, y) >= x
 //         );
 //     }
-    
+
 //     /// Verus can often automatically choose a trigger if no manual trigger is given.
 //     /// Use the command-line option --triggers to print the chosen triggers.
 //     fn test_auto_trigger1() {
@@ -1244,14 +1203,14 @@ spec(checked) fn my_spec_fun2(x: int, y: int) -> int
 //         // (It considers this safer, i.e. likely to match less often, than the trigger [f1(x), f1(y)].)
 //         assume(forall|x: int, y: int| f1(x) < 100 && f1(y) < 100 ==> my_spec_fun(x, y) >= x);
 //     }
-    
+
 //     /// If Verus prints a note saying that it automatically chose a trigger with low confidence,
 //     /// you can supply manual triggers or use #![auto] to accept the automatically chosen trigger.
 //     fn test_auto_trigger2() {
 //         // Verus chose [f1(x), f1(y)] as the trigger; go ahead and accept that
 //         assume(forall|x: int, y: int| #![auto] f1(x) < 100 && f1(y) < 100 ==> my_spec_fun(3, y) >= 3);
 //     }
-    
+
 //     /// &&& and ||| are like && and ||, but have low precedence (lower than all other binary operators).
 //     /// &&& must appear before each conjunct, rather than between the conjuncts (similarly for |||).
 //     spec fn simple_conjuncts(x: int, y: int) -> bool {
@@ -1272,7 +1231,7 @@ spec(checked) fn my_spec_fun2(x: int, y: int) -> int
 //             }
 //         &&& false ==> true
 //     }
-    
+
 //     /// ==> associates to the right, while <== associates to the left.
 //     /// <==> is nonassociative.
 //     /// === is SMT equality (equivalent to the builtin equal function).
@@ -1281,20 +1240,20 @@ spec(checked) fn my_spec_fun2(x: int, y: int) -> int
 //         assert(false ==> true);
 //         assert(true && false ==> false && false);
 //         assert(!(true && (false ==> false) && false));
-    
+
 //         assert(false ==> false ==> false);
 //         assert(false ==> (false ==> false));
 //         assert(!((false ==> false) ==> false));
-    
+
 //         assert(false <== false <== false);
 //         assert(!(false <== (false <== false)));
 //         assert((false <== false) <== false);
 //         assert(2 + 2 !== 3);
 //         assert(a === a);
-    
+
 //         assert(false <==> true && false);
 //     }
-    
+
 //     /// In specs, <=, <, >=, and > may be chained together so that, for example, a <= b < c means
 //     /// a <= b && b < c.  (Note on efficiency: if b is a complex expression,
 //     /// Verus will automatically introduce a temporary variable under the hood so that
@@ -1306,7 +1265,7 @@ spec(checked) fn my_spec_fun2(x: int, y: int) -> int
 //             j < k,
 //     {
 //     }
-    
+
 //     /// In specs, e@ is an abbreviation for e.view()
 //     /// Many types implement a view() method to get an abstract ghost view of a concrete type.
 //     fn test_views() {
@@ -1319,19 +1278,19 @@ spec(checked) fn my_spec_fun2(x: int, y: int) -> int
 //             assert(s[1] == 20);
 //         }
 //     }
-    
+
 //     /// struct and enum declarations may be declared exec (default), tracked, or ghost,
 //     /// and fields may be declared exec (default), tracked or ghost.
 //     tracked struct TrackedAndGhost<T, G>(
 //         tracked T,
 //         ghost G,
 //     );
-    
+
 //     /// Proof code may manipulate tracked variables directly.
 //     /// Both declarations and uses of tracked variables must be explicitly marked as "tracked".
 //     proof fn consume(tracked x: int) {
 //     }
-    
+
 //     proof fn test_tracked(
 //         tracked w: int,
 //         tracked x: int,
@@ -1343,7 +1302,7 @@ spec(checked) fn my_spec_fun2(x: int, y: int) -> int
 //         let tracked TrackedAndGhost((a, b), c) = tracked tag;
 //         TrackedAndGhost((tracked a, tracked b), c)
 //     }
-    
+
 //     /// Variables in exec code are always exec; ghost and tracked variables are not available directly.
 //     /// Instead, the library types Ghost and Tracked are used to wrap ghost values and tracked values.
 //     /// Ghost and tracked expressions ghost(expr) and tracked(expr) create values of type Ghost<T>
@@ -1367,7 +1326,7 @@ spec(checked) fn my_spec_fun2(x: int, y: int) -> int
 //         });
 //         assert(w@ == x + y + 4);
 //     }
-    
+
 //     fn test_consume(t: Tracked<int>)
 //         requires t@ <= 7
 //     {
@@ -1377,23 +1336,23 @@ spec(checked) fn my_spec_fun2(x: int, y: int) -> int
 //             consume(tracked x);
 //         }
 //     }
-    
+
 //     /// Exec code can extract individual Ghost and Tracked values from Ghost and Tracked tuples
 //     /// with "let Ghost((...))" and "let Tracked((...))".
 //     /// The tuple pattern elements may further match on Trk and Gho from pervasives::modes.
 //     fn test_ghost_tuple_match(t: Tracked<(bool, bool, Gho<int>, Gho<int>)>) -> Tracked<bool> {
 //         let g: Ghost<(int, int)> = ghost((10, 20));
-    
+
 //         let Ghost((g1, g2)) = g; // g1 and g2 both have type Ghost<int>
 //         assert(g1@ + g2@ == 30);
-    
+
 //         let Ghost((g1, g2)): (Ghost<int>, Ghost<int>) = g;
 //         assert(g1@ + g2@ == 30);
-    
+
 //         let Tracked((b1, b2, Gho(g3), Gho(g4))) = t; // b1, b2: Tracked<bool> and g3, g4: Ghost<int>
 //         b2
 //     }
-    
+
 //     /// Spec functions are not checked for correctness (although they are checked for termination).
 //     /// However, marking a spec function as "spec(checked)" enables lightweight "recommends checking"
 //     /// inside the spec function.
@@ -1405,19 +1364,19 @@ spec(checked) fn my_spec_fun2(x: int, y: int) -> int
 //         // Because of spec(checked), Verus checks that my_spec_fun's recommends clauses are satisfied here:
 //         my_spec_fun(x, y)
 //     }
-    
+
 //     /// Spec functions may omit their body, in which case they are considered
 //     /// uninterpreted (returning an arbitrary value of the return type depending on the input values).
 //     /// This is safe, since spec functions (unlike proof and exec functions) may always
 //     /// return arbitrary values of any type,
 //     /// where the value may be special "bottom" value for otherwise uninhabited types.
 //     spec fn my_uninterpreted_fun1(i: int, j: int) -> int;
-    
+
 //     spec fn my_uninterpreted_fun2(i: int, j: int) -> int
 //         recommends
 //             0 <= i < 10,
 //             0 <= j < 10;
-    
+
 //     /// Trait functions may have specifications
 //     trait T {
 //         proof fn my_uninterpreted_fun2(&self, i: int, j: int) -> (r: int)
@@ -1428,5 +1387,5 @@ spec(checked) fn my_spec_fun2(x: int, y: int) -> int
 //                 i <= r,
 //                 j <= r;
 //     }
-    
+
 //     } // verus!"

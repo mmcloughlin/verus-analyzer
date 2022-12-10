@@ -610,7 +610,13 @@ impl Analysis {
                 Vec::new()
             };
             let ssr_assists = ssr::ssr_assists(db, &resolve, frange);
-            let assists = ide_assists::assists_with_diagnostic(db, assist_config, resolve, frange, verus_errors);
+            let assists = ide_assists::assists_with_diagnostic(
+                db,
+                assist_config,
+                resolve,
+                frange,
+                verus_errors,
+            );
 
             let mut res = diagnostic_assists;
             res.extend(ssr_assists.into_iter());

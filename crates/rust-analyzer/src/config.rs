@@ -1158,7 +1158,7 @@ impl Config {
                 let command = args.remove(0);
                 command
             }
-            _ => {String::new()}
+            _ => String::new(),
         };
 
         AssistConfig {

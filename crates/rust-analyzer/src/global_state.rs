@@ -107,13 +107,11 @@ pub(crate) struct GlobalState {
 
     pub(crate) prime_caches_queue: OpQueue<()>,
 
-
     // verus
     // running Verus for all file takes too much time
-    // only run Verus for the saved file 
+    // only run Verus for the saved file
     // pub recent_saved_file: uri;
     pub(crate) verus_errors: Vec<VerusError>,
-
 }
 
 /// An immutable snapshot of the world's state at a point in time.

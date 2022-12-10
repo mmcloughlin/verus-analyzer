@@ -423,19 +423,18 @@ impl<'a> Printer<'a> {
                     });
                 }
                 w!(self, "}}");
-            },
+            }
             // verus --- add "assert"
             Expr::Assert { condition } => {
                 w!(self, "assert(");
                 self.print_expr(*condition);
                 w!(self, ")");
-            },
+            }
             Expr::Assume { condition } => {
                 w!(self, "assume(");
                 self.print_expr(*condition);
-                w!(self, ")");                
-            }
-            // TODO: assume, viewexpr
+                w!(self, ")");
+            } // TODO: assume, viewexpr
         }
     }
 

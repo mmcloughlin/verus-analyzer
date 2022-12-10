@@ -369,7 +369,7 @@ impl Body {
     }
 
     fn shrink_to_fit(&mut self) {
-        let Self { _c: _, body_expr: _, block_scopes, or_pats, exprs, labels, params, pats} = self;
+        let Self { _c: _, body_expr: _, block_scopes, or_pats, exprs, labels, params, pats } = self;
         block_scopes.shrink_to_fit();
         or_pats.shrink_to_fit();
         exprs.shrink_to_fit();

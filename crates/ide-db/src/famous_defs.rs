@@ -20,7 +20,6 @@ use crate::RootDatabase;
 /// ```
 pub struct FamousDefs<'a, 'b>(pub &'a Semantics<'b, RootDatabase>, pub Crate);
 
-
 // TODO(verus) this place might be a place for "Pervasive + verus-Core"
 
 #[allow(non_snake_case)]

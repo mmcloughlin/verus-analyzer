@@ -85,12 +85,12 @@ impl<'a> InferenceContext<'a> {
                 let bool_ty = self.result.standard_types.bool_.clone();
                 self.infer_expr_coerce(*condition, &Expectation::HasType(bool_ty.clone()));
                 bool_ty
-            },
+            }
             Expr::Assume { condition } => {
                 let bool_ty = self.result.standard_types.bool_.clone();
                 self.infer_expr_coerce(*condition, &Expectation::HasType(bool_ty.clone()));
                 bool_ty
-            },
+            }
             &Expr::If { condition, then_branch, else_branch } => {
                 self.infer_expr(
                     condition,
