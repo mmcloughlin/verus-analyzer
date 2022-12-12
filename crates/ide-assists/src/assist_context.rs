@@ -194,9 +194,12 @@ impl<'a> AssistContext<'a> {
     // REVIEW: when Verus support crate, use "file id" to know which file a verus_error belongs to.
     // TODO: define API functions that returns a list of VerusError
     //       list of errors of specific conditions: error-type, surrounding function, offset, etc
+
+    
     pub(crate) fn verus_errors(&self) -> Vec<VerusError> {
         self.verus_errors.to_vec()
     }
+
     pub(crate) fn verus_pre_failures(&self) -> Vec<VerusError> {
         let pre_errors: Vec<VerusError> = self
             .verus_errors
@@ -209,6 +212,7 @@ impl<'a> AssistContext<'a> {
             .collect();
         pre_errors
     }
+
     pub(crate) fn verus_post_failures(&self) -> Vec<VerusError> {
         let post_errors: Vec<VerusError> = self
             .verus_errors
@@ -236,7 +240,7 @@ impl<'a> AssistContext<'a> {
     // for example, from this pattern "fn :[_]{:[body]}",
     // this collects the "body"'s range.
     // Assume only one "hole" is named and the other "hole"s are just "_".
-    pub(crate) fn textrange_from_comby_pattern(&self, pattern: String) -> Option<Vec<TextRange>> {
+    pub(crate) fn textranges_from_comby_pattern(&self, pattern: String) -> Option<Vec<TextRange>> {
         let func: syntax::ast::Fn = self.find_node_at_offset::<syntax::ast::Fn>()?;
         let comby_result =
             run_comby_for(String::from("/usr/local/bin/comby"), pattern, func.fn_token()?)?;
@@ -264,13 +268,10 @@ impl<'a> AssistContext<'a> {
         Some(filtered_ranges)
     }
 
-    // pub(crate) fn exprs_from_textranges(&self, ranges: Vec<TextRange>) -> Option<Vec<TextRange>> {
-    //     let exprs = ranges.into_iter().map(|range| self.find_node_at_this_range::<ast::Expr>(range)?).collect();
-    //     Some(exprs)
-    // }
-
-    // pub(crate) fn node_from_comby_pattern(&self, pattern: String) -> Option<syntax::ast::Expr> { // REVIEW: return type?
-    // }
+    pub(crate) fn exprs_from_textranges(&self, ranges: Vec<TextRange>) -> Option<Vec<TextRange>> {
+        let exprs = ranges.into_iter().map(|range| self.find_node_at_this_range::<ast::Expr>(range)?).collect();
+        Some(exprs)
+    }
 
     pub(crate) fn run_verus_on_fn(&self, token: SyntaxToken) -> Option<bool> {
         run_verus(self.config.verus_path.clone(), token, true)
@@ -559,7 +560,7 @@ pub fn run_comby_for(
     for line in output.stdout.lines() {
         let line = line.expect("Failed to parse comby result as json");
         let deserialized: CombyResult = serde_json::from_str(&line).unwrap();
-        return (Some(deserialized));
+        return Some(deserialized);
     }
     return None;
 }

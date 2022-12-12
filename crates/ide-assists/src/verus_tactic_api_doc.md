@@ -8,9 +8,10 @@
 
 All code action shares the same signature, which is `fn (acc: &mut Assists, ctx: &AssistContext<'_>) -> Option<()>`. A code action utilizes `ctx: &AssistContext` to get its relevant context, and append the generated source change to `acc: &mut Assists`. 
 
-If a code action returns `None`, it indicates that the code action is not applicable in the given context. For example, assume we want a code action to be applicable only when the user's cursor hovers on `ensures` keyword. In this case, the code action should return `None` when the cursor isn't on `ensures`. Many APIs follow this style, which is returning `None` when a certain 
+If a code action returns `None`, it indicates that the code action is not applicable in the given context. For example, assume we want a code action to be applicable only when the user's cursor hovers on `ensures` keyword. In this case, the code action should return `None` when the cursor isn't on `ensures`. Many APIs follow this style of returning `None` when a certain condition is not satisfied.  
+  
 
-#### `AssistContext`
+### AssistContext
 `AssistContext` contains all relevant context information, and it also contains basic APIs for developing code actions. 
 It contains API for various tasks, including the following:
 
@@ -25,12 +26,12 @@ Note that many APIs use `TextRange`, which is just a pair of byte offsets. For e
 
 For more details, see `AssistContext`'s definition at `ide-assists::assist_context::AssistContext`.
 
-#### Returning source changes
+### Returning source changes
 At the end of a code action implementation, we need to return the resulting source change using `SourceChangeBuilder`. These changes are propagated to LSP client, and these changes can be applied to users' code inside the IDE. `SourceChangeBuilder` implements various useful APIs, including `replace_ast`,  `insert`(insert a text string at a certain offset), and `delete`(remove the text string at a `TextRange`).
 
 For more details, see `SourceChangeBuilder`'s definition at `ide_db::source_change::SourceChangeBuilder`.
 
-#### Rust analyzer's internal API   
+### Rust analyzer's internal API   
 For advanced usages, APIs of `AssistContext` and `SourceChangeBuilder` might not be sufficient. However, since our custom rust-analyzer is already extended for Verus-specific parts, we can readily use rust analyzer's internal APIs to support advanced usages.
 
 For example, the following tasks can be achieved by using rust analyzer's internal APIs:
@@ -50,12 +51,12 @@ For example, the following tasks can be achieved by using rust analyzer's intern
 
 ## How to interact with Verus 
 
-#### Invoking Verus and using its result    
+### Invoking Verus and using its result    
 `AssistContext` has helper functions to invoke Verus. They return `Option<bool>`. `None` indicates "failed to run Verus" error, which includes compile error and VIR/AIR error. When it returns `Some`, it indicates either verification success or failure. These APIs can be used to check verification results, assuming certain CST replacements.
 
 For more details, see helper functions at `assist_context::AssistContext::{run_verus_on_fn, run_verus_on_file}`.
 
-#### Retrieve Verus Error Info from the previous run
+### Retrieve Verus Error Info from the previous run
 After the user runs Verus by hitting the save button, the verification result is saved inside `AssistContext`. `AssistContext` contains APIs for retrieving Verus Errors.
 
 Verus errors are defined as the following:
@@ -126,7 +127,7 @@ https://comby.live
 
 Concrete syntax tree tries to capture the exact text on the user's IDE, including whitespace, newline, and comments. It enables IDEs to manipulate formats as well. Verus code action manipulates text at CST level.
 
-#### CST and `SyntaxNode`
+### CST and `SyntaxNode`
 Concrete syntax tree is based on `SyntaxNode`, which is a tree structure that is not aware of Rust syntax structure.
 
 `AST` wraps `SyntaxNode` to make it easier to work with by defining CST as a wrapper. Note that these definitions are auto-generated from `syntax/rust.ungram`. This "ungrammar" file contains basic definitions concisely. It is very useful to see `syntax/rust.ungram` when working at CST level.
@@ -179,13 +180,13 @@ impl Fn {
 For more details, see `syntax::ast::generated::nodes` for `AST` definition, and `syntax::ast` for trait `AstNode` definition.,
 
 
-#### Find the CST node at a given TextRange
+### Find the CST node at a given TextRange
 We can use `AssistContext::find_node_at_range::<>` to get the CST node at a given `TextRange`. Note that we need to type the output, which are often `ast::Fn` or `ast::Expr`.
 
-#### Using the user's current cursor location
+### Using the user's current cursor location
 For details, see `AssistContext::{find_token_at_offset, find_node_at_offset}`.
 
-#### CST from text
+### CST from text
 To produce new code, it is often convenient to generate from a text string. We can simply do so using the parser of rust-analyzer. 
 `ast_from_text` directly invokes the parser to get the CST from a given text. 
 
@@ -193,7 +194,7 @@ Note that we sometimes need to pad the text string with some additional string, 
 
 For more details, see `syntax::ast::make`.
 
-#### CST visitor patterns
+### CST visitor patterns
 AST visitor patterns are partially implemented. We can directly use these APIs to visit each node of `ast::Expr`, `ast::Pat`, and `ast::Type`. 
 The following functions might be particularly useful:
 
@@ -226,7 +227,7 @@ For more details, see `ide_db::syntax_helpers::node_ext`, and `syntax::match_ast
 Note that rust-analyzer's HIR is **not** rustc's HIR. Crate `hir` defines rust-analyzer's higher level description of source code.
 
 
-#### HIR Definition
+### HIR Definition
 
 Each HIR struct is assigned its `Id`. For example, `hir::Function` has a single field `FunctionId`. 
 
@@ -235,15 +236,15 @@ Each struct implements various methods. For example, `struct Function` implement
 For more details, see `hir::lib`.
 
 
-#### How to find hir definition from a CST node?   
+### How to find hir definition from a CST node?   
 `ctx.sema.to_def(node)`
 
 
-#### How to find the CST node from a hir definition?    
+### How to find the CST node from a hir definition?    
 `ctx.sema.source(def)`
 
 
-#### Finding Function Definition at a Callsite
+### Finding Function Definition at a Callsite
 Noe that `ctx`'s type is `AssisContext`, `ctx.sema`'s type is `Semantics`, and `call`'s type is `ast::CallExpr`.
 
 We could use below code snippet to get the hir definition of the function.
@@ -262,7 +263,7 @@ let function = match ctx.sema.resolve_path(&path)? {
 
 We can also use `ctx.sema.to_def(&function)` to get the CST node of the function.
 
-#### How to get type info?                 
+### How to get type info?                 
 `ctx.sema.type_of_expr(&expr)`
 `ctx.sema.type_of_pat(pat)`    
 
@@ -304,24 +305,24 @@ TODO: walk through this example to provide an overall view of how this works
 
 
 
-## misc
+## Misc
 
-#### Code Style
+### Code Style
 For composability, users are encouraged to separate the code action's rewriting part as a new function. The rewrite functions will have the signature of `CSTNode -> Option<CSTNode>`, where `None` indicates the rewrite failure. 
 
 TODO: elaborate
 
-#### Testing code action
+### Testing code action
 TODO
 `$0` for the user's cursor
 
-#### key binding
+### key binding
 In VS Code, the default key binding for code action might be `ctrl .` or `fn .`
 
-#### Details of LSP specifications
+### Details of LSP specifications
 https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#codeAction 
 
-#### Details of rust-analyzer internals
+### Details of rust-analyzer internals
 https://github.com/rust-lang/rust-analyzer/blob/master/docs/dev/syntax.md
 https://github.com/rust-lang/rust-analyzer/blob/master/docs/dev/lsp-extensions.md
 https://github.com/rust-lang/rust-analyzer/blob/master/docs/dev/architecture.md#crateshir

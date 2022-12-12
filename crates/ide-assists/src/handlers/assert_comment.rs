@@ -3,15 +3,9 @@ use crate::{
     assist_context::{AssistContext, Assists},
     AssistId, AssistKind,
 };
-use std::collections::hash_map::DefaultHasher;
-use std::env;
-use std::{
-    hash::{Hash, Hasher},
-    process::Command,
-};
 use syntax::{
-    ast::{self, AstNode, HasName},
-    SyntaxKind, SyntaxToken, T,
+    ast::{self, AstNode},
+    SyntaxKind, T,
 };
 
 pub(crate) fn assert_comment(acc: &mut Assists, ctx: &AssistContext<'_>) -> Option<()> {

@@ -56,7 +56,7 @@ pub(crate) fn intro_failing_ensures(acc: &mut Assists, ctx: &AssistContext<'_>) 
     // TODO: let's just use CST API for getting return value. making comby search work as expected seems harder than looking up the CST API
     // TODO: might worth replacing it with SSR thing
     let ret_ranges: Vec<TextRange> =
-        ctx.textrange_from_comby_pattern(String::from("fn :[_] -> (:[ret]::[_]) :[_]"))?;
+        ctx.textranges_from_comby_pattern(String::from("fn :[_] -> (:[ret]::[_]) :[_]"))?;
     dbg!(&ret_ranges);
     dbg!(&func_range);
     let ret_range: Vec<TextRange> =
@@ -75,7 +75,7 @@ pub(crate) fn intro_failing_ensures(acc: &mut Assists, ctx: &AssistContext<'_>) 
 
     // find the offset location of function exit
     let exit_ranges: Vec<TextRange> =
-        ctx.textrange_from_comby_pattern(String::from("fn :[_]{:[body]}"))?;
+        ctx.textranges_from_comby_pattern(String::from("fn :[_]{:[body]}"))?;
     let exit_range: Vec<TextRange> =
         exit_ranges.into_iter().filter(|x| func_range.contains_range(x.clone())).collect();
     if exit_range.len() > 1 {
