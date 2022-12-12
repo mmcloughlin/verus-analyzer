@@ -132,11 +132,6 @@ Concrete syntax tree is based on `SyntaxNode`, which is a tree structure that is
 
 `AST` wraps `SyntaxNode` to make it easier to work with by defining CST as a wrapper. Note that these definitions are auto-generated from `syntax/rust.ungram`. This "ungrammar" file contains basic definitions concisely. It is very useful to see `syntax/rust.ungram` when working at CST level.
 
-To get the underlying `SyntaxNode` of an AST node, use the `syntax` function, which is implemented by all AST nodes.
-
-
-
-
 For example, in `rust.ungram`, `Fn` is defined as the following:
 
 ```
@@ -177,6 +172,7 @@ impl Fn {
 }
 ```
 
+Note that we can use the `syntax` function to get the underlying `SyntaxNode` of an AST node.
 For more details, see `syntax::ast::generated::nodes` for `AST` definition, and `syntax::ast` for trait `AstNode` definition.,
 
 
@@ -222,7 +218,7 @@ For more details, see `ide_db::syntax_helpers::node_ext`, and `syntax::match_ast
 
 ## Using rust-analyzer's HIR
 
-`AssisContext` contains `sema` field, which has type `Semantics`. It contains the semantics database, which can be used to query vairous facts about specific CST nodes.
+`AssisContext` contains `sema` field, which has type `Semantics`. It contains the semantics database, which can be used to query vairous facts.
 
 Note that rust-analyzer's HIR is **not** rustc's HIR. Crate `hir` defines rust-analyzer's higher level description of source code.
 
@@ -245,10 +241,9 @@ For more details, see `hir::lib`.
 
 
 ### Finding Function Definition at a Callsite
-Noe that `ctx`'s type is `AssisContext`, `ctx.sema`'s type is `Semantics`, and `call`'s type is `ast::CallExpr`.
-
 We could use below code snippet to get the hir definition of the function.
-
+Note that `ctx`'s type is `AssisContext`, `ctx.sema`'s type is `Semantics`, and `call`'s type is `ast::CallExpr`.
+(TODO: make this a helper function?)
 ```
 let path =  match call.expr()? {
                 ast::Expr::PathExpr(path) => path.path(),
@@ -259,12 +254,11 @@ let function = match ctx.sema.resolve_path(&path)? {
     _ => return None,
 };
 ```            
-(TODO: make this a helper function?)
 
-We can also use `ctx.sema.to_def(&function)` to get the CST node of the function.
+After getting the definition, we can subsequently use `ctx.sema.to_def(&function)` to get the CST node of the function.
 
 ### How to get type info?                 
-`ctx.sema.type_of_expr(&expr)`
+`ctx.sema.type_of_expr(&expr)`   
 `ctx.sema.type_of_pat(pat)`    
 
 <!-- #### resolve function at the callsite      
