@@ -292,8 +292,8 @@ pub(crate) const KINDS_SRC: KindsSrc<'_> = KindsSrc {
         "INVARIANT_CLAUSE",
         "ASSERT_EXPR",
         "ASSUME_EXPR",
-        "ASSERT_BLOCK", // what is this?
-        "ASSUME_BLOCK", // what is this?
+        "ASSERT_BLOCK",   // what is this?
+        "ASSUME_BLOCK",   // what is this?
         "COND_AND_COMMA", // change this to 'specification'
         "COMMA_AND_COND", // change this to 'specification'
         "PAT_AND_COMMA",

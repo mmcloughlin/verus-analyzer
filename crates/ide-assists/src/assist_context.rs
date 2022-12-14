@@ -195,35 +195,28 @@ impl<'a> AssistContext<'a> {
     // TODO: define API functions that returns a list of VerusError
     //       list of errors of specific conditions: error-type, surrounding function, offset, etc
 
-    
     pub(crate) fn verus_errors(&self) -> Vec<VerusError> {
         self.verus_errors.to_vec()
     }
 
-    pub(crate) fn verus_pre_failures(&self) -> Vec<VerusError> {
-        let pre_errors: Vec<VerusError> = self
-            .verus_errors
-            .to_vec()
-            .into_iter()
-            .filter(|verr| match *verr {
-                VerusError::Pre(_) => true,
-                _ => false,
-            })
-            .collect();
-        pre_errors
+    pub(crate) fn verus_pre_failures(&self) -> Vec<PreFailure> {
+        let mut pre_errs = vec![];
+        for verr in self.verus_errors(){
+            if let VerusError::Pre(p) = verr {
+                pre_errs.push(p.clone());
+            }
+        }
+        pre_errs
     }
 
-    pub(crate) fn verus_post_failures(&self) -> Vec<VerusError> {
-        let post_errors: Vec<VerusError> = self
-            .verus_errors
-            .to_vec()
-            .into_iter()
-            .filter(|verr| match *verr {
-                VerusError::Post(_) => true,
-                _ => false,
-            })
-            .collect();
-        post_errors
+    pub(crate) fn verus_post_failures(&self) -> Vec<PostFailure> {
+        let mut post_errs = vec![];
+        for verr in self.verus_errors(){
+            if let VerusError::Post(p) = verr {
+                post_errs.push(p.clone());
+            }
+        }
+        post_errs
     }
 
     // TODO: add verus error API function that filter verus_error of "this" function
@@ -268,10 +261,10 @@ impl<'a> AssistContext<'a> {
         Some(filtered_ranges)
     }
 
-    pub(crate) fn exprs_from_textranges(&self, ranges: Vec<TextRange>) -> Option<Vec<TextRange>> {
-        let exprs = ranges.into_iter().map(|range| self.find_node_at_this_range::<ast::Expr>(range)?).collect();
-        Some(exprs)
-    }
+    // pub(crate) fn exprs_from_textranges(&self, ranges: Vec<TextRange>) -> Option<Vec<TextRange>> {
+    //     let exprs = ranges.into_iter().map(|range| self.find_node_at_this_range::<ast::Expr>(range)?).collect();
+    //     Some(exprs)
+    // }
 
     pub(crate) fn run_verus_on_fn(&self, token: SyntaxToken) -> Option<bool> {
         run_verus(self.config.verus_path.clone(), token, true)

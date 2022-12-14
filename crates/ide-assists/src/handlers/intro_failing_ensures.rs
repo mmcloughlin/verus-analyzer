@@ -6,116 +6,89 @@ use syntax::{
     match_ast, AstNode, TextRange,
 };
 
-// copied from `wrap_return_type_in_result`
-fn tail_cb_impl(acc: &mut Vec<ast::Expr>, e: &ast::Expr) {
-    match e {
-        Expr::BreakExpr(break_expr) => {
-            if let Some(break_expr_arg) = break_expr.expr() {
-                for_each_tail_expr(&break_expr_arg, &mut |e| tail_cb_impl(acc, e))
-            }
-        }
-        Expr::ReturnExpr(ret_expr) => {
-            if let Some(ret_expr_arg) = &ret_expr.expr() {
-                for_each_tail_expr(ret_expr_arg, &mut |e| tail_cb_impl(acc, e));
-            }
-        }
-        e => acc.push(e.clone()),
-    }
-}
-
 pub(crate) fn intro_failing_ensures(acc: &mut Assists, ctx: &AssistContext<'_>) -> Option<()> {
-    // trigger on "ensures"
-    let func = ctx.find_node_at_offset::<ast::Fn>()?;
+    // setup basic variables
+    let func: ast::Fn = ctx.find_node_at_offset::<ast::Fn>()?;
     let func_range: TextRange = func.syntax().text_range();
-    let body = func.body()?;
-    let ensures = func.ensures_clause()?;
+    let body: ast::BlockExpr = func.body()?;
+    let ensures: ast::EnsuresClause = func.ensures_clause()?;
+
+    // trigger on "ensures"
+    // check if cursor is on "ensures" keyword
     let ensures_keyword = ensures.ensures_token()?;
-    let ensures_range = ensures_keyword.text_range();
-    let cursor_in_range = ensures_range.contains_range(ctx.selection_trimmed());
+    let cursor_in_range = ensures_keyword.text_range().contains_range(ctx.selection_trimmed());
     if !cursor_in_range {
         return None;
     }
 
     // collect failing post-conditions
     let mut failed_posts = vec![];
-    for verr in &ctx.verus_errors {
-        if let crate::VerusError::Post(post) = verr {
-            let post_cond = ctx.find_node_at_this_range::<ast::Expr>(post.failing_post)?;
-            let post_assert = format!("assert({post_cond});\n");
-            failed_posts.push(post_assert);
-        }
+    for post in ctx.verus_post_failures() {
+        let post_cond = ctx.find_node_at_this_range::<ast::Expr>(post.failing_post)?;
+        let post_assert = format!("assert({post_cond});\n");
+        failed_posts.push(post_assert);
     }
     if failed_posts.len() == 0 {
         return None;
     }
+    let failed_post_concat = failed_posts.concat();
 
     // calcaulte diff
     // first, check if the function returns something (to confirm if I need to introduce let-binding)
-    // fn :[_] -> (:[ret]: :[_]) :[_] {:[_]}
-    // fn :[_] -> (:[ret]::[_]) :[_]
-    // TODO: let's just use CST API for getting return value. making comby search work as expected seems harder than looking up the CST API
-    // TODO: might worth replacing it with SSR thing
-    let ret_ranges: Vec<TextRange> =
-        ctx.textranges_from_comby_pattern(String::from("fn :[_] -> (:[ret]::[_]) :[_]"))?;
-    dbg!(&ret_ranges);
-    dbg!(&func_range);
-    let ret_range: Vec<TextRange> =
-        ret_ranges.into_iter().filter(|x| func_range.contains_range(x.clone())).collect();
-    dbg!(ret_range.len());
-    if ret_range.len() > 1 {
-        return None; // unexpected error
-    }
     let mut ret_name: String = String::new();
-    if ret_range.len() == 1 {
-        let ret_name_expr = ctx.find_node_at_this_range::<ast::Pat>(ret_range[0])?;
-        ret_name = format!("{}", ret_name_expr);
-        dbg!(&ret_name);
-    }
-    let failed_post_concat = failed_posts.concat();
+    let mut has_ret: bool = false;
+    if let Some(ret) = func.ret_type() {
+        let ret_pat = ret.pat()?;
+        ret_name = format!("{ret_pat}");
+        has_ret = true;
+    };
 
-    // find the offset location of function exit
-    let exit_ranges: Vec<TextRange> =
-        ctx.textranges_from_comby_pattern(String::from("fn :[_]{:[body]}"))?;
-    let exit_range: Vec<TextRange> =
-        exit_ranges.into_iter().filter(|x| func_range.contains_range(x.clone())).collect();
-    if exit_range.len() > 1 {
-        return None; // unexpected error
-    }
-
+    let exit_range = func.body()?.syntax().text_range().end();
     // TODO: formatting -- rustfmt?
-    acc.add(AssistId("intro_failing_ensures", AssistKind::RefactorRewrite), "Copy FAILED ensures clauses to the end", ensures_range, |edit| {
-        if ret_range.len() == 0 {
-            // no return value
-            dbg!("no ret");
-            edit.insert(exit_range[0].end(), failed_post_concat);
+    acc.add(AssistId("intro_failing_ensures", AssistKind::RefactorRewrite), "Copy FAILED ensures clauses to the end", ensures_keyword.text_range(), |edit| {
+        if !has_ret {
+            edit.insert(exit_range, failed_post_concat);
         } else {
             // when it returns a value, we need to introduce let-binding for each tailing expression
             // when the return expression is if-else or match-statement, we need to introduce let-binding for each cases
-            // also, we need to insert assertions on "return"-statements, which could be anywhere
+
+            // TODO: we need to insert assertions on "return"-statements, which could be anywhere
             // "return ret_expr;" -> {let r = ret_expr; assert(P); return r;}
             // should be fairly similar to `wrap_return_type_in_result`
-            //
-            dbg!("yes ret");
+            
             let body = ast::Expr::BlockExpr(body);
-
             let mut exprs_to_bind = Vec::new();
-            let tail_cb = &mut |e: &_| tail_cb_impl(&mut exprs_to_bind, e);
-            walk_expr(&body, &mut |expr| {
-                if let Expr::ReturnExpr(ret_expr) = expr {
-                    if let Some(ret_expr_arg) = &ret_expr.expr() {
-                        for_each_tail_expr(ret_expr_arg, tail_cb);
-                    }
-                }
-            });
+            let tail_cb = &mut |e: &ast::Expr| exprs_to_bind.push(e.clone());
             for_each_tail_expr(&body, tail_cb);
 
             for ret_expr_arg in exprs_to_bind {
-                let binded = format!("let {ret_name} = {ret_expr_arg};\n    {failed_post_concat}\n {ret_expr_arg}");
+                let binded = format!("let {ret_name} = {ret_expr_arg};\n    {failed_post_concat}\n    {ret_expr_arg}");
                 edit.replace(ret_expr_arg.syntax().text_range(), binded);
             }
         };
     })
 }
+
+// TODO: setup verus error test env
+// maybe run verus first, and save error
+
+// verus!{
+// proof fn hello(a:u32, b:u32) -> (c:u32)
+//     ensures
+//         c > 0,
+//         c > 1,
+// {
+//     if a == 0 {
+//        if b == 0 {
+//            0
+//         } else {
+//             2
+//         }
+//     } else {
+//         3
+//     }
+// }
+// } //verus
 
 #[cfg(test)]
 mod tests {
@@ -240,3 +213,17 @@ proof fn lemma_fibo_is_monotonic(i: nat, j: nat)
         );
     }
 }
+
+// fn :[_] -> (:[ret]: :[_]) :[_] {:[_]}
+// fn :[_] -> (:[ret]::[_]) :[_]
+// TODO: let's just use CST API for getting return value. making comby search work as expected seems harder than looking up the CST API
+// TODO: might worth replacing it with SSR thing
+
+// find the offset location of function exit
+// let exit_ranges: Vec<TextRange> =
+//     ctx.textranges_from_comby_pattern(String::from("fn :[_]{:[body]}"))?;
+// let exit_range: Vec<TextRange> =
+//     exit_ranges.into_iter().filter(|x| func_range.contains_range(x.clone())).collect();
+// if exit_range.len() > 1 {
+//     return None; // unexpected error
+// }
