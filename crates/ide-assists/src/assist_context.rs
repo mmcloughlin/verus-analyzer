@@ -201,7 +201,7 @@ impl<'a> AssistContext<'a> {
 
     pub(crate) fn verus_pre_failures(&self) -> Vec<PreFailure> {
         let mut pre_errs = vec![];
-        for verr in self.verus_errors(){
+        for verr in self.verus_errors() {
             if let VerusError::Pre(p) = verr {
                 pre_errs.push(p.clone());
             }
@@ -211,7 +211,7 @@ impl<'a> AssistContext<'a> {
 
     pub(crate) fn verus_post_failures(&self) -> Vec<PostFailure> {
         let mut post_errs = vec![];
-        for verr in self.verus_errors(){
+        for verr in self.verus_errors() {
             if let VerusError::Post(p) = verr {
                 post_errs.push(p.clone());
             }

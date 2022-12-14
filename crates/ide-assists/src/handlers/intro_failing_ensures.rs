@@ -2,14 +2,13 @@ use crate::{AssistContext, AssistId, AssistKind, Assists};
 use ide_db::syntax_helpers::node_ext::{for_each_tail_expr, walk_expr};
 
 use syntax::{
-    ast::{self, Expr},
+    ast::{self, edit::AstNodeEdit, make, Expr},
     match_ast, AstNode, TextRange,
 };
 
 pub(crate) fn intro_failing_ensures(acc: &mut Assists, ctx: &AssistContext<'_>) -> Option<()> {
     // setup basic variables
     let func: ast::Fn = ctx.find_node_at_offset::<ast::Fn>()?;
-    let func_range: TextRange = func.syntax().text_range();
     let body: ast::BlockExpr = func.body()?;
     let ensures: ast::EnsuresClause = func.ensures_clause()?;
 
@@ -25,16 +24,14 @@ pub(crate) fn intro_failing_ensures(acc: &mut Assists, ctx: &AssistContext<'_>) 
     let mut failed_posts = vec![];
     for post in ctx.verus_post_failures() {
         let post_cond = ctx.find_node_at_this_range::<ast::Expr>(post.failing_post)?;
-        let post_assert = format!("assert({post_cond});\n");
+        let post_assert = format!("assert({post_cond});");
         failed_posts.push(post_assert);
     }
     if failed_posts.len() == 0 {
         return None;
     }
-    let failed_post_concat = failed_posts.concat();
 
-    // calcaulte diff
-    // first, check if the function returns something (to confirm if I need to introduce let-binding)
+    // Check if the function returns something (to confirm if we need to introduce let-binding)
     let mut ret_name: String = String::new();
     let mut has_ret: bool = false;
     if let Some(ret) = func.ret_type() {
@@ -44,25 +41,27 @@ pub(crate) fn intro_failing_ensures(acc: &mut Assists, ctx: &AssistContext<'_>) 
     };
 
     let exit_range = func.body()?.syntax().text_range().end();
-    // TODO: formatting -- rustfmt?
     acc.add(AssistId("intro_failing_ensures", AssistKind::RefactorRewrite), "Copy FAILED ensures clauses to the end", ensures_keyword.text_range(), |edit| {
         if !has_ret {
+            let failed_post_concat = failed_posts.connect("\n    ");
             edit.insert(exit_range, failed_post_concat);
         } else {
             // when it returns a value, we need to introduce let-binding for each tailing expression
             // when the return expression is if-else or match-statement, we need to introduce let-binding for each cases
-
-            // TODO: we need to insert assertions on "return"-statements, which could be anywhere
-            // "return ret_expr;" -> {let r = ret_expr; assert(P); return r;}
-            // should be fairly similar to `wrap_return_type_in_result`
+            // TODO: do this for "return" (see `wrap_return_type_in_result`)
             
+            // collect tail expressions
             let body = ast::Expr::BlockExpr(body);
             let mut exprs_to_bind = Vec::new();
             let tail_cb = &mut |e: &ast::Expr| exprs_to_bind.push(e.clone());
             for_each_tail_expr(&body, tail_cb);
 
+            // for all tail expressions, let-bind and then insert failing postcondition as assertion
             for ret_expr_arg in exprs_to_bind {
-                let binded = format!("let {ret_name} = {ret_expr_arg};\n    {failed_post_concat}\n    {ret_expr_arg}");
+                let indent = ret_expr_arg.indent_level();
+                let sep = format!("\n{indent}");
+                let failed_post_concat = failed_posts.connect(&sep);
+                let binded = format!("let {ret_name} = {ret_expr_arg};\n{indent}{failed_post_concat}\n{indent}{ret_expr_arg}");
                 edit.replace(ret_expr_arg.syntax().text_range(), binded);
             }
         };
@@ -71,6 +70,8 @@ pub(crate) fn intro_failing_ensures(acc: &mut Assists, ctx: &AssistContext<'_>) 
 
 // TODO: setup verus error test env
 // maybe run verus first, and save error
+
+// TODO: formatting -- rustfmt?
 
 // verus!{
 // proof fn hello(a:u32, b:u32) -> (c:u32)
