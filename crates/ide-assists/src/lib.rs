@@ -92,7 +92,7 @@ pub fn assists(
     range: FileRange,
 ) -> Vec<Assist> {
     let sema = Semantics::new(db);
-    let ctx = AssistContext::new(sema, config, range, vec![]);
+    let ctx = AssistContext::new(sema, config, range, vec![], vec![]);
     let mut acc = Assists::new(&ctx, resolve);
     handlers::all().iter().for_each(|handler| {
         handler(&mut acc, &ctx);
@@ -106,9 +106,10 @@ pub fn assists_with_diagnostic(
     resolve: AssistResolveStrategy,
     range: FileRange,
     verus_error: Vec<VerusError>,
+    verus_quantifiers: Vec<VerusQuantifier>,
 ) -> Vec<Assist> {
     let sema = Semantics::new(db);
-    let ctx = AssistContext::new(sema, config, range, verus_error);
+    let ctx = AssistContext::new(sema, config, range, verus_error, verus_quantifiers);
     let mut acc = Assists::new(&ctx, resolve);
     handlers::all().iter().for_each(|handler| {
         handler(&mut acc, &ctx);
@@ -139,6 +140,11 @@ pub struct PostFailure {
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct AssertFailure {
     pub range: TextRange,
+}
+
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub struct VerusQuantifier {
+    pub exprs: Vec<TextRange>,
 }
 
 mod handlers {

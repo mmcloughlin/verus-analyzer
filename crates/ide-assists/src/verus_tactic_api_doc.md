@@ -284,8 +284,8 @@ Should write about the struct/enum definitions in hir crate -->
    
 
 
-## Example: "Check if this assertion is essential"
-TODO: walk through this example to provide an overall view of how this works
+## Example: "Copy Failing Postconditions to the End"
+
 
 
 

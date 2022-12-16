@@ -28,7 +28,7 @@ use crate::{
     reload::{self, BuildDataProgress, ProjectWorkspaceProgress},
     Result,
 };
-use ide_assists::{AssertFailure, PostFailure, PreFailure, VerusError};
+use ide_assists::{AssertFailure, PostFailure, PreFailure, VerusError, VerusQuantifier};
 
 pub fn main_loop(config: Config, connection: Connection) -> Result<()> {
     tracing::info!("initial config: {:#?}", config);
@@ -596,19 +596,56 @@ impl GlobalState {
         }
     }
 
+    fn diagnostic_to_verus_quantifier(
+        &mut self,
+        diagnostic: &cargo_metadata::diagnostic::Diagnostic,
+    ) -> Option<VerusQuantifier> {
+        if diagnostic.message.contains("Cost * Instantiations:")
+            && (diagnostic.message.contains("top 1 of")
+                || diagnostic.message.contains("top 2 of")
+                || diagnostic.message.contains("top 3 of"))
+        {
+            dbg!("verus quant top 3");
+            dbg!(&diagnostic.spans);
+            if diagnostic.spans.len() >= 2 {
+                let mut quants = vec![];
+                for sp in &diagnostic.spans {
+                    if sp.is_primary {
+                        let range = TextRange::new(
+                            TextSize::from(sp.byte_start),
+                            TextSize::from(sp.byte_end),
+                        );
+                        quants.push(range);
+                    }
+                }
+                if quants.len() == 0 {
+                    // no actual quant reported
+                    return None;
+                }
+                return Some(VerusQuantifier { exprs: quants });
+            } else {
+                // verus quant unexpected num of span
+                None
+            }
+        } else {
+            None
+        }
+    }
+
     fn handle_flycheck_msg(&mut self, message: flycheck::Message) {
         match message {
             flycheck::Message::AddDiagnostic { id, workspace_root, diagnostic } => {
-                match self.diagnostic_to_verus_err(&diagnostic) {
-                    // TODO: should empty verus_error list when "restart flycheck"
-                    Some(verr) => self.verus_errors.push(verr),
-                    None => {
-                        dbg!("not a verus error");
-                    }
+                // register verus errors
+                // should flush out errors on save
+                if let Some(verr) = self.diagnostic_to_verus_err(&diagnostic) {
+                    self.verus_errors.push(verr)
                 };
-                // dbg!("propagating:");
-                // dbg!(&diagnostic);
-                // TODO(verus): register verification error to global context
+                // register top3 expansive quantifiers
+                // should flush out quants on save
+                if let Some(quant) = self.diagnostic_to_verus_quantifier(&diagnostic) {
+                    self.verus_quantifiers.push(quant)
+                };
+
                 let snap = self.snapshot();
                 let diagnostics = crate::diagnostics::to_proto::map_rust_diagnostic_to_lsp(
                     &self.config.diagnostics_map(),
@@ -635,7 +672,9 @@ impl GlobalState {
                 let (state, message) = match progress {
                     flycheck::Progress::DidStart => {
                         self.diagnostics.clear_check(id);
-                        self.verus_errors = vec![]; // Review(Verus)
+                        // Review(Verus)
+                        self.verus_errors = vec![];
+                        self.verus_quantifiers = vec![];
                         (Progress::Begin, None)
                     }
                     flycheck::Progress::DidCheckCrate(target) => (Progress::Report, Some(target)),
@@ -883,6 +922,10 @@ impl GlobalState {
                 Ok(())
             })?
             .on::<lsp_types::notification::DidSaveTextDocument>(|this, params| {
+                // flush out old verus errors
+                // self.verus_errors = vec![];
+                // self.verus_quantifiers = vec![];
+
                 let mut updated = false;
                 if let Ok(vfs_path) = from_proto::vfs_path(&params.text_document.uri) {
                     let (vfs, _) = &*this.vfs.read();

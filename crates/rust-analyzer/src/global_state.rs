@@ -8,7 +8,7 @@ use std::{sync::Arc, time::Instant};
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use flycheck::FlycheckHandle;
 use ide::{Analysis, AnalysisHost, Cancellable, Change, FileId};
-use ide_assists::VerusError;
+use ide_assists::{VerusError, VerusQuantifier};
 use ide_db::base_db::{CrateId, FileLoader, SourceDatabase};
 use lsp_types::{SemanticTokens, Url};
 use parking_lot::{Mutex, RwLock};
@@ -112,6 +112,7 @@ pub(crate) struct GlobalState {
     // only run Verus for the saved file
     // pub recent_saved_file: uri;
     pub(crate) verus_errors: Vec<VerusError>,
+    pub(crate) verus_quantifiers: Vec<VerusQuantifier>,
 }
 
 /// An immutable snapshot of the world's state at a point in time.
@@ -126,6 +127,7 @@ pub(crate) struct GlobalStateSnapshot {
     pub(crate) proc_macros_loaded: bool,
     // verus
     pub(crate) verus_errors: Vec<VerusError>,
+    pub(crate) verus_quantifiers: Vec<VerusQuantifier>,
 }
 
 impl std::panic::UnwindSafe for GlobalStateSnapshot {}
@@ -180,6 +182,7 @@ impl GlobalState {
 
             fetch_build_data_queue: OpQueue::default(),
             verus_errors: vec![],
+            verus_quantifiers: vec![],
         };
         // Apply any required database inputs from the config.
         this.update_configuration(config);
@@ -269,6 +272,7 @@ impl GlobalState {
             semantic_tokens_cache: Arc::clone(&self.semantic_tokens_cache),
             proc_macros_loaded: !self.fetch_build_data_queue.last_op_result().0.is_empty(),
             verus_errors: self.verus_errors.to_vec(),
+            verus_quantifiers: self.verus_quantifiers.to_vec(),
         }
     }
 

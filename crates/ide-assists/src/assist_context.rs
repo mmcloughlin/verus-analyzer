@@ -10,6 +10,7 @@ use syntax::{
     TextRange, TextSize, TokenAtOffset,
 };
 
+use crate::VerusQuantifier;
 use crate::{
     assist_config::AssistConfig, Assist, AssistId, AssistKind, AssistResolveStrategy, GroupLabel,
     PostFailure, PreFailure, VerusError,
@@ -66,7 +67,9 @@ pub(crate) struct AssistContext<'a> {
     trimmed_range: TextRange,
     source_file: SourceFile,
     // verus
+    // review: VerusContext ?
     pub(crate) verus_errors: Vec<VerusError>,
+    pub(crate) verus_quantifiers: Vec<VerusQuantifier>,
 }
 
 impl<'a> AssistContext<'a> {
@@ -75,6 +78,7 @@ impl<'a> AssistContext<'a> {
         config: &'a AssistConfig,
         frange: FileRange,
         verus_errors: Vec<VerusError>,
+        verus_quantifiers: Vec<VerusQuantifier>,
     ) -> AssistContext<'a> {
         let source_file = sema.parse(frange.file_id);
 
@@ -95,7 +99,15 @@ impl<'a> AssistContext<'a> {
             _ => frange.range,
         };
 
-        AssistContext { config, sema, frange, source_file, trimmed_range, verus_errors }
+        AssistContext {
+            config,
+            sema,
+            frange,
+            source_file,
+            trimmed_range,
+            verus_errors,
+            verus_quantifiers,
+        }
     }
 
     pub(crate) fn db(&self) -> &RootDatabase {
@@ -195,13 +207,9 @@ impl<'a> AssistContext<'a> {
     // TODO: define API functions that returns a list of VerusError
     //       list of errors of specific conditions: error-type, surrounding function, offset, etc
 
-    pub(crate) fn verus_errors(&self) -> Vec<VerusError> {
-        self.verus_errors.to_vec()
-    }
-
-    pub(crate) fn verus_pre_failures(&self) -> Vec<PreFailure> {
+    fn filter_pre_failuires(&self, verus_errors: Vec<VerusError>) -> Vec<PreFailure> {
         let mut pre_errs = vec![];
-        for verr in self.verus_errors() {
+        for verr in verus_errors {
             if let VerusError::Pre(p) = verr {
                 pre_errs.push(p.clone());
             }
@@ -209,14 +217,51 @@ impl<'a> AssistContext<'a> {
         pre_errs
     }
 
-    pub(crate) fn verus_post_failures(&self) -> Vec<PostFailure> {
+    fn filter_post_failuires(&self, verus_errors: Vec<VerusError>) -> Vec<PostFailure> {
         let mut post_errs = vec![];
-        for verr in self.verus_errors() {
+        for verr in verus_errors {
             if let VerusError::Post(p) = verr {
                 post_errs.push(p.clone());
             }
         }
         post_errs
+    }
+
+    pub(crate) fn verus_errors_all(&self) -> Vec<VerusError> {
+        self.verus_errors.to_vec()
+    }
+
+    pub(crate) fn verus_pre_failures_all(&self) -> Vec<PreFailure> {
+        self.filter_pre_failuires(self.verus_errors_all())
+    }
+
+    pub(crate) fn verus_post_failures_all(&self) -> Vec<PostFailure> {
+        self.filter_post_failuires(self.verus_errors_all())
+    }
+
+    pub(crate) fn verus_errors_fn(&self) -> Option<Vec<VerusError>> {
+        let surrounding_fn = self.find_node_at_offset::<syntax::ast::Fn>()?;
+        let surrounding_range = surrounding_fn.syntax().text_range();
+        let filtered_verus_errs = self
+            .verus_errors_all()
+            .into_iter()
+            .filter(|verr| match verr {
+                VerusError::Pre(pre) => surrounding_range.contains_range(pre.callsite),
+                VerusError::Post(post) => surrounding_range.contains_range(post.failing_post),
+                VerusError::Assert(assert) => surrounding_range.contains_range(assert.range),
+            })
+            .collect();
+        Some(filtered_verus_errs)
+    }
+
+    pub(crate) fn verus_pre_failures_fn(&self) -> Option<Vec<PreFailure>> {
+        let verus_errors_fn = self.verus_errors_fn()?;
+        Some(self.filter_pre_failuires(verus_errors_fn))
+    }
+
+    pub(crate) fn verus_post_failures_fn(&self) -> Option<Vec<PostFailure>> {
+        let verus_errors_fn = self.verus_errors_fn()?;
+        Some(self.filter_post_failuires(verus_errors_fn))
     }
 
     // TODO: add verus error API function that filter verus_error of "this" function

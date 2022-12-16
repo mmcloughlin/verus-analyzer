@@ -1099,6 +1099,7 @@ pub(crate) fn handle_code_action(
         resolve,
         frange,
         snap.verus_errors.to_vec(),
+        snap.verus_quantifiers.to_vec(),
     )?;
     for (index, assist) in assists.into_iter().enumerate() {
         let resolve_data =
@@ -1169,6 +1170,7 @@ pub(crate) fn handle_code_action_resolve(
         AssistResolveStrategy::Single(assist_resolve),
         frange,
         snap.verus_errors.to_vec(),
+        snap.verus_quantifiers.to_vec(),
     )?;
 
     let assist = match assists.get(assist_index) {

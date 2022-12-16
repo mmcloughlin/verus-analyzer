@@ -1,4 +1,4 @@
-use crate::{AssistContext, AssistId, AssistKind, Assists};
+use crate::{AssistContext, AssistId, AssistKind, Assists, PostFailure};
 use ide_db::syntax_helpers::node_ext::{for_each_tail_expr, walk_expr};
 
 use syntax::{
@@ -22,7 +22,7 @@ pub(crate) fn intro_failing_ensures(acc: &mut Assists, ctx: &AssistContext<'_>) 
 
     // collect failing post-conditions
     let mut failed_posts = vec![];
-    for post in ctx.verus_post_failures() {
+    for post in ctx.verus_post_failures_fn()? {
         let post_cond = ctx.find_node_at_this_range::<ast::Expr>(post.failing_post)?;
         let post_assert = format!("assert({post_cond});");
         failed_posts.push(post_assert);

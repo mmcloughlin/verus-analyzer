@@ -95,7 +95,7 @@ pub(crate) fn intro_requires(acc: &mut Assists, ctx: &AssistContext<'_>) -> Opti
     let frange = FileRange { file_id: file_with_caret_id, range: range_or_offset.into() };
     let sema = Semantics::new(&db);
     let config = TEST_CONFIG;
-    let tmp_ctx = AssistContext::new(sema, &config, frange, vec![]); // TODO(verus): use ctx.diagnostic
+    let tmp_ctx = AssistContext::new(sema, &config, frange, vec![], vec![]); // TODO(verus): use ctx.diagnostic
     let tmp_foo = tmp_ctx.find_node_at_offset::<ast::Fn>()?;
     let tmp_body = tmp_foo.body()?;
     let tmp_param_list = tmp_foo.param_list()?;

@@ -593,6 +593,7 @@ impl Analysis {
         resolve: AssistResolveStrategy,
         frange: FileRange,
         verus_errors: Vec<ide_assists::VerusError>,
+        verus_quantifiers: Vec<ide_assists::VerusQuantifier>,
     ) -> Cancellable<Vec<Assist>> {
         let include_fixes = match &assist_config.allowed {
             Some(it) => it.iter().any(|&it| it == AssistKind::None || it == AssistKind::QuickFix),
@@ -616,6 +617,7 @@ impl Analysis {
                 resolve,
                 frange,
                 verus_errors,
+                verus_quantifiers,
             );
 
             let mut res = diagnostic_assists;
