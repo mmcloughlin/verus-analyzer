@@ -208,6 +208,7 @@ mod handlers {
     mod assert_by;
     mod assert_comment;
     mod intro_ensures;
+    mod intro_match;
     mod intro_failing_ensures;
     mod intro_requires;
     mod merge_imports;
@@ -305,6 +306,7 @@ mod handlers {
             assert_by::assert_by,
             assert_comment::assert_comment,
             intro_ensures::intro_ensures,
+            intro_match::intro_match,
             intro_failing_ensures::intro_failing_ensures,
             intro_requires::intro_requires,
             merge_imports::merge_imports,
