@@ -13,6 +13,7 @@ use crate::{
     resolver::HasResolver,
     ConstId, FunctionId, HasModule, LocalFieldId, ModuleId, VariantId,
 };
+// TODO(verus): proof visibility
 
 /// Visibility of an item, not yet resolved.
 #[derive(Debug, Clone, PartialEq, Eq)]
