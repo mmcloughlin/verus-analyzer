@@ -1,71 +1,62 @@
+use std::vec;
+
 use crate::{AssistContext, AssistId, AssistKind, Assists, PostFailure};
-use ide_db::syntax_helpers::node_ext::{for_each_tail_expr, walk_expr};
+use hir::{Semantics, Adt, HasSource};
+use ide_db::{syntax_helpers::node_ext::{for_each_tail_expr, walk_expr}, RootDatabase};
 
 use syntax::{
-    ast::{self, edit::AstNodeEdit, make, Expr},
-    match_ast, AstNode, TextRange,
+    ast::{self, edit::AstNodeEdit, make, Expr, HasName},
+    match_ast, AstNode, TextRange, T,
 };
 
+fn resolve_enum_def(sema: &Semantics<'_, RootDatabase>, expr: &ast::Expr) -> Option<hir::Enum> {
+    sema.type_of_expr(expr)?.adjusted().autoderef(sema.db).
+    find_map(|ty| match ty.as_adt() {
+        Some(Adt::Enum(e)) => Some(e),
+        _ => None,
+    })
+}
+
+
 pub(crate) fn intro_match(acc: &mut Assists, ctx: &AssistContext<'_>) -> Option<()> {
-    // setup basic variables
-    let func: ast::Fn = ctx.find_node_at_offset::<ast::Fn>()?;
-    let body: ast::BlockExpr = func.body()?;
-    // // let ensures: ast::EnsuresClause = func.ensures_clause()?;
+    let assert_keyword = ctx.find_token_syntax_at_offset(T![assert])?;
+    let assert_expr = ast::AssertExpr::cast(assert_keyword.parent()?)?;
+    let assert_range = assert_keyword.text_range();
+    let cursor_in_range = assert_range.contains_range(ctx.selection_trimmed());
+    if !cursor_in_range {
+        return None;
+    }
+    dbg!(assert_expr.expr()?);
+    let assert_goal = assert_expr.expr()?;
+    let mut v = vec![];
+    let cb = &mut |e: Expr| if resolve_enum_def(&ctx.sema, &e).is_some() {v.push(e.clone()); ()} else {};
+    walk_expr(&assert_goal, cb);
+    let var_name = &v[0];
+    let enum_def = resolve_enum_def(&ctx.sema, var_name)?;
+    dbg!(enum_def);
+    let enum_variants = enum_def.variants(ctx.sema.db).into_iter().collect::<Vec<_>>();
+    let enum_name = enum_def.source(ctx.sema.db)?.value.name()?;
+    // let mut out = String::new();
+    let mut cases = vec![];
+    for variant in enum_variants {
+        let variant_name = variant.source(ctx.sema.db)?.value.name()?;
+        cases.push(format!("{enum_name}::{variant_name}(..) => assert({assert_goal}), "));
+    }
 
-    // // // trigger on "ensures"
-    // // // check if cursor is on "ensures" keyword
-    // // let ensures_keyword = ensures.ensures_token()?;
-    // // let cursor_in_range = ensures_keyword.text_range().contains_range(ctx.selection_trimmed());
-    // // if !cursor_in_range {
-    // //     return None;
-    // // }
+    let body = cases.join("\n\t");
+    let result = format!("match {var_name} {{\n\t{body}\n}}");
 
-    // // collect failing post-conditions
-    // let mut failed_posts = vec![];
-    // for post in ctx.verus_post_failures_fn()? {
-    //     let post_cond = ctx.find_node_at_this_range::<ast::Expr>(post.failing_post)?;
-    //     let post_assert = format!("assert({post_cond});");
-    //     failed_posts.push(post_assert);
-    // }
-    // if failed_posts.len() == 0 {
-    //     return None;
-    // }
-
-    // // Check if the function returns something (to confirm if we need to introduce let-binding)
-    // let mut ret_name: String = String::new();
-    // let mut has_ret: bool = false;
-    // if let Some(ret) = func.ret_type() {
-    //     let ret_pat = ret.pat()?;
-    //     ret_name = format!("{ret_pat}");
-    //     has_ret = true;
-    // };
-
-    // let exit_range = func.body()?.syntax().text_range().end();
-    // acc.add(AssistId("intro_failing_ensures", AssistKind::RefactorRewrite), "Copy FAILED ensures clauses to the end", ensures_keyword.text_range(), |edit| {
-    //     if !has_ret {
-    //         let failed_post_concat = failed_posts.connect("\n    ");
-    //         edit.insert(exit_range, failed_post_concat);
-    //     } else {
-    //         // when it returns a value, we need to introduce let-binding for each tailing expression
-    //         // when the return expression is if-else or match-statement, we need to introduce let-binding for each cases
-    //         // TODO: do this for "return" (see `wrap_return_type_in_result`)
-            
-    //         // collect tail expressions
-    //         let body = ast::Expr::BlockExpr(body);
-    //         let mut exprs_to_bind = Vec::new();
-    //         let tail_cb = &mut |e: &ast::Expr| exprs_to_bind.push(e.clone());
-    //         for_each_tail_expr(&body, tail_cb);
-
-    //         // for all tail expressions, let-bind and then insert failing postcondition as assertion
-    //         for ret_expr_arg in exprs_to_bind {
-    //             let indent = ret_expr_arg.indent_level();
-    //             let sep = format!("\n{indent}");
-    //             let failed_post_concat = failed_posts.connect(&sep);
-    //             let binded = format!("let {ret_name} = {ret_expr_arg};\n{indent}{failed_post_concat}\n{indent}{ret_expr_arg}");
-    //             edit.replace(ret_expr_arg.syntax().text_range(), binded);
-    //         }
-    //     };
-    // })
+    acc.add(
+        AssistId("intro_match", AssistKind::RefactorRewrite),
+        "Add match pattern for failed assert on enum ",
+        assert_expr.syntax().text_range(),
+        |edit| {
+            edit.replace(
+                assert_expr.syntax().text_range(),
+                result
+            );
+        },
+    )
 }
 
 #[cfg(test)]
@@ -77,7 +68,7 @@ mod tests {
     #[test]
     fn intro_failing_ensures_easy() {
         check_assist(
-            intro_failing_ensures,
+            intro_match,
 r#"
     enum Movement {
         Up(u32),
@@ -93,7 +84,7 @@ r#"
     
     proof fn good_move(m: Movement)
     {
-        assert (is_good_move(m));
+        ass$0ert(is_good_move(m));
     }
 "#,
 r#"
@@ -103,7 +94,7 @@ r#"
     }
     
     spec fn is_good_move(m: Movement) -> bool {
-        match  m {
+        match m {
             Movement::Up(v) => v > 100,
             Movement::Down(v) => v > 100,
         }
@@ -111,11 +102,11 @@ r#"
     
     proof fn good_move(m: Movement)
     {
-        match  m {
-            Movement::Up(_) => assert (is_good_move(m)),
-            Movement::Down(_) =>  assert (is_good_move(m)),
-        }
-    }
+    match m {
+        Movement::Up(..) => assert(is_good_move(m)),
+        Movement::Down(..) => assert(is_good_move(m)),
+};
+}
 "#,
     );
     }
