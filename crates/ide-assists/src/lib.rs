@@ -81,6 +81,11 @@ pub use ide_db::assists::{
     Assist, AssistId, AssistKind, AssistResolveStrategy, GroupLabel, SingleResolve,
 };
 
+use syntax::{
+    ast::{self, edit_in_place::Indent, HasArgList, PathExpr},
+    ted, AstNode, NodeOrToken, SyntaxKind,
+};
+
 /// Return all the assists applicable at the given position.
 ///
 // NOTE: We don't have a `Feature: ` section for assists, they are special-cased
@@ -211,6 +216,7 @@ mod handlers {
     mod intro_match;
     mod intro_failing_ensures;
     mod intro_requires;
+    mod opacify_function;
     mod merge_imports;
     mod merge_match_arms;
     mod move_bounds;
@@ -309,6 +315,7 @@ mod handlers {
             intro_match::intro_match,
             intro_failing_ensures::intro_failing_ensures,
             intro_requires::intro_requires,
+            opacify_function::opacify_function,
             merge_imports::merge_imports,
             merge_match_arms::merge_match_arms,
             move_bounds::move_bounds_to_where_clause,
@@ -371,5 +378,40 @@ mod handlers {
             // Are you sure you want to add new assist here, and not to the
             // sorted list above?
         ]
+    }
+}
+
+ // code from inline_call
+pub(crate) struct CallInfo {
+    node: ast::CallableExpr,
+    arguments: Vec<ast::Expr>,
+    generic_arg_list: Option<ast::GenericArgList>,
+}
+ // code from inline_call
+impl CallInfo {
+    pub(crate) fn from_name_ref(name_ref: ast::NameRef) -> Option<CallInfo> {
+        let parent = name_ref.syntax().parent()?;
+        if let Some(call) = ast::MethodCallExpr::cast(parent.clone()) {
+            let receiver = call.receiver()?;
+            let mut arguments = vec![receiver];
+            arguments.extend(call.arg_list()?.args());
+            Some(CallInfo {
+                generic_arg_list: call.generic_arg_list(),
+                node: ast::CallableExpr::MethodCall(call),
+                arguments,
+            })
+        } else if let Some(segment) = ast::PathSegment::cast(parent) {
+            let path = segment.syntax().parent().and_then(ast::Path::cast)?;
+            let path = path.syntax().parent().and_then(ast::PathExpr::cast)?;
+            let call = path.syntax().parent().and_then(ast::CallExpr::cast)?;
+
+            Some(CallInfo {
+                arguments: call.arg_list()?.args().collect(),
+                node: ast::CallableExpr::Call(call),
+                generic_arg_list: segment.generic_arg_list(),
+            })
+        } else {
+            None
+        }
     }
 }

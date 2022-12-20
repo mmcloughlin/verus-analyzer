@@ -1,9 +1,9 @@
-use crate::{AssistContext, AssistId, AssistKind, Assists, PostFailure};
-use ide_db::syntax_helpers::node_ext::{for_each_tail_expr, walk_expr};
+use crate::{AssistContext, AssistId, AssistKind, Assists};
+use ide_db::syntax_helpers::node_ext::for_each_tail_expr;
 
 use syntax::{
-    ast::{self, edit::AstNodeEdit, make, Expr},
-    match_ast, AstNode, TextRange,
+    ast::{self, edit::AstNodeEdit},
+    AstNode, 
 };
 
 pub(crate) fn intro_failing_ensures(acc: &mut Assists, ctx: &AssistContext<'_>) -> Option<()> {
@@ -43,12 +43,11 @@ pub(crate) fn intro_failing_ensures(acc: &mut Assists, ctx: &AssistContext<'_>) 
     let exit_range = func.body()?.syntax().text_range().end();
     acc.add(AssistId("intro_failing_ensures", AssistKind::RefactorRewrite), "Copy FAILED ensures clauses to the end", ensures_keyword.text_range(), |edit| {
         if !has_ret {
-            let failed_post_concat = failed_posts.connect("\n    ");
+            let failed_post_concat = failed_posts.join("\n    ");
             edit.insert(exit_range, failed_post_concat);
         } else {
             // when it returns a value, we need to introduce let-binding for each tailing expression
             // when the return expression is if-else or match-statement, we need to introduce let-binding for each cases
-            // TODO: do this for "return" (see `wrap_return_type_in_result`)
             
             // collect tail expressions
             let body = ast::Expr::BlockExpr(body);
@@ -60,14 +59,15 @@ pub(crate) fn intro_failing_ensures(acc: &mut Assists, ctx: &AssistContext<'_>) 
             for ret_expr_arg in exprs_to_bind {
                 let indent = ret_expr_arg.indent_level();
                 let sep = format!("\n{indent}");
-                let failed_post_concat = failed_posts.connect(&sep);
-                let binded = format!("let {ret_name} = {ret_expr_arg};\n{indent}{failed_post_concat}\n{indent}{ret_expr_arg}");
+                let failed_post_concat = failed_posts.join(&sep);
+                let binded = format!("let {ret_name} = {ret_expr_arg};\n{indent}{failed_post_concat}\n{indent}{ret_name}");
                 edit.replace(ret_expr_arg.syntax().text_range(), binded);
             }
         };
     })
 }
 
+// TODO: introduce let-binding for "return" expressions as well(see `wrap_return_type_in_result`)
 // TODO: setup verus error test env
 // maybe run verus first, and save error
 

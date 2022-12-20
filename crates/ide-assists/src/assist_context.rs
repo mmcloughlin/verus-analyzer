@@ -1,6 +1,6 @@
 //! See [`AssistContext`].
 
-use hir::Semantics;
+use hir::{Semantics, Function};
 use ide_db::base_db::{FileId, FileRange};
 use ide_db::{label::Label, RootDatabase};
 use syntax::ast::HasName;
@@ -10,7 +10,7 @@ use syntax::{
     TextRange, TextSize, TokenAtOffset,
 };
 
-use crate::VerusQuantifier;
+use crate::{VerusQuantifier, CallInfo};
 use crate::{
     assist_config::AssistConfig, Assist, AssistId, AssistKind, AssistResolveStrategy, GroupLabel,
     PostFailure, PreFailure, VerusError,
@@ -69,7 +69,7 @@ pub(crate) struct AssistContext<'a> {
     // verus
     // review: VerusContext ?
     pub(crate) verus_errors: Vec<VerusError>,
-    pub(crate) verus_quantifiers: Vec<VerusQuantifier>,
+    pub(crate) verus_quantifiers: Vec<VerusQuantifier>, // WIP
 }
 
 impl<'a> AssistContext<'a> {
@@ -191,6 +191,7 @@ impl<'a> AssistContext<'a> {
         find_node_at_range(self.source_file.syntax(), trimmed_range)
     }
     // just a "typed" duplicate of `find_node_at_this_range`
+    #[allow(dead_code)]
     pub(crate) fn find_expr_at_this_range(
         &self,
         trimmed_range: TextRange,
@@ -198,6 +199,7 @@ impl<'a> AssistContext<'a> {
         self.find_node_at_this_range::<syntax::ast::Expr>(trimmed_range)
     }
     // just a "typed" duplicate of `find_node_at_offset`
+    #[allow(dead_code)]
     pub(crate) fn find_surrounding_fn(&self) -> Option<syntax::ast::Fn> {
         self.find_node_at_offset::<syntax::ast::Fn>()
     }
@@ -207,6 +209,7 @@ impl<'a> AssistContext<'a> {
     // TODO: define API functions that returns a list of VerusError
     //       list of errors of specific conditions: error-type, surrounding function, offset, etc
 
+    #[allow(dead_code)]
     fn filter_pre_failuires(&self, verus_errors: Vec<VerusError>) -> Vec<PreFailure> {
         let mut pre_errs = vec![];
         for verr in verus_errors {
@@ -217,6 +220,7 @@ impl<'a> AssistContext<'a> {
         pre_errs
     }
 
+    #[allow(dead_code)]
     fn filter_post_failuires(&self, verus_errors: Vec<VerusError>) -> Vec<PostFailure> {
         let mut post_errs = vec![];
         for verr in verus_errors {
@@ -226,19 +230,19 @@ impl<'a> AssistContext<'a> {
         }
         post_errs
     }
-
+    #[allow(dead_code)]
     pub(crate) fn verus_errors_all(&self) -> Vec<VerusError> {
         self.verus_errors.to_vec()
     }
-
+    #[allow(dead_code)]
     pub(crate) fn verus_pre_failures_all(&self) -> Vec<PreFailure> {
         self.filter_pre_failuires(self.verus_errors_all())
     }
-
+    #[allow(dead_code)]
     pub(crate) fn verus_post_failures_all(&self) -> Vec<PostFailure> {
         self.filter_post_failuires(self.verus_errors_all())
     }
-
+    #[allow(dead_code)]
     pub(crate) fn verus_errors_fn(&self) -> Option<Vec<VerusError>> {
         let surrounding_fn = self.find_node_at_offset::<syntax::ast::Fn>()?;
         let surrounding_range = surrounding_fn.syntax().text_range();
@@ -253,23 +257,23 @@ impl<'a> AssistContext<'a> {
             .collect();
         Some(filtered_verus_errs)
     }
-
+    #[allow(dead_code)]
     pub(crate) fn verus_pre_failures_fn(&self) -> Option<Vec<PreFailure>> {
         let verus_errors_fn = self.verus_errors_fn()?;
         Some(self.filter_pre_failuires(verus_errors_fn))
     }
-
+    #[allow(dead_code)]
     pub(crate) fn verus_post_failures_fn(&self) -> Option<Vec<PostFailure>> {
         let verus_errors_fn = self.verus_errors_fn()?;
         Some(self.filter_post_failuires(verus_errors_fn))
     }
 
     // TODO: add verus error API function that filter verus_error of "this" function
-
+    #[allow(dead_code)]
     pub(crate) fn node_from_pre_failure(&self, pre: PreFailure) -> Option<syntax::ast::Expr> {
         self.find_node_at_this_range::<syntax::ast::Expr>(pre.failing_pre)
     }
-
+    #[allow(dead_code)]
     pub(crate) fn node_from_post_failure(&self, post: PostFailure) -> Option<syntax::ast::Expr> {
         self.find_node_at_this_range::<syntax::ast::Expr>(post.failing_post)
     }
@@ -278,6 +282,7 @@ impl<'a> AssistContext<'a> {
     // for example, from this pattern "fn :[_]{:[body]}",
     // this collects the "body"'s range.
     // Assume only one "hole" is named and the other "hole"s are just "_".
+    #[allow(dead_code)]
     pub(crate) fn textranges_from_comby_pattern(&self, pattern: String) -> Option<Vec<TextRange>> {
         let func: syntax::ast::Fn = self.find_node_at_offset::<syntax::ast::Fn>()?;
         let comby_result =
@@ -294,7 +299,7 @@ impl<'a> AssistContext<'a> {
         }
         Some(text_ranges)
     }
-
+    #[allow(dead_code)]
     pub(crate) fn textranges_in_current_fn(
         &self,
         ranges: Vec<TextRange>,
@@ -310,13 +315,39 @@ impl<'a> AssistContext<'a> {
     //     let exprs = ranges.into_iter().map(|range| self.find_node_at_this_range::<ast::Expr>(range)?).collect();
     //     Some(exprs)
     // }
-
+    #[allow(dead_code)]
     pub(crate) fn run_verus_on_fn(&self, token: SyntaxToken) -> Option<bool> {
         run_verus(self.config.verus_path.clone(), token, true)
     }
-
+    #[allow(dead_code)]
     pub(crate) fn run_verus_on_file(&self, token: SyntaxToken) -> Option<bool> {
         run_verus(self.config.verus_path.clone(), token, false)
+    }
+
+    // if cursor is not on a function call, return None
+    // if cursor is on a function call, get the HIR-def of the function
+    #[allow(dead_code)]
+    pub(crate) fn get_function_from_callsite(&self) -> Option<(Function, CallInfo)> {
+        // code from inline_call
+        let name_ref: ast::NameRef = self.find_node_at_offset()?;
+        let call_info = crate::CallInfo::from_name_ref(name_ref.clone())?;
+        let (function, _label) = match &call_info.node {
+            ast::CallableExpr::Call(call) => {
+                let path = match call.expr()? {
+                    ast::Expr::PathExpr(path) => path.path(),
+                    _ => None,
+                }?;
+                let function = match self.sema.resolve_path(&path)? {
+                    hir::PathResolution::Def(hir::ModuleDef::Function(f)) => f,
+                    _ => return None,
+                };
+                (function, format!("Inline `{}`", path))
+            }
+            ast::CallableExpr::MethodCall(call) => {
+                (self.sema.resolve_method_call(call)?, format!("Inline `{}`", name_ref))
+            }
+        };
+        Some((function, call_info))
     }
 }
 
