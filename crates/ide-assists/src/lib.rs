@@ -82,8 +82,8 @@ pub use ide_db::assists::{
 };
 
 use syntax::{
-    ast::{self, edit_in_place::Indent, HasArgList, PathExpr},
-    ted, AstNode, NodeOrToken, SyntaxKind,
+    ast::{self, HasArgList},
+    AstNode,
 };
 
 /// Return all the assists applicable at the given position.
@@ -381,13 +381,13 @@ mod handlers {
     }
 }
 
- // code from inline_call
+// code from inline_call
 pub(crate) struct CallInfo {
     node: ast::CallableExpr,
     arguments: Vec<ast::Expr>,
     generic_arg_list: Option<ast::GenericArgList>,
 }
- // code from inline_call
+// code from inline_call
 impl CallInfo {
     pub(crate) fn from_name_ref(name_ref: ast::NameRef) -> Option<CallInfo> {
         let parent = name_ref.syntax().parent()?;

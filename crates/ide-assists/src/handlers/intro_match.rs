@@ -1,22 +1,20 @@
 use std::vec;
 
-use crate::{AssistContext, AssistId, AssistKind, Assists, PostFailure};
-use hir::{Semantics, Adt, HasSource};
-use ide_db::{syntax_helpers::node_ext::{for_each_tail_expr, walk_expr}, RootDatabase};
+use crate::{AssistContext, AssistId, AssistKind, Assists};
+use hir::{Adt, HasSource, Semantics};
+use ide_db::{syntax_helpers::node_ext::walk_expr, RootDatabase};
 
 use syntax::{
-    ast::{self, edit::AstNodeEdit, make, Expr, HasName},
-    match_ast, AstNode, TextRange, T,
+    ast::{self, Expr, HasName},
+    AstNode, T,
 };
 
 fn resolve_enum_def(sema: &Semantics<'_, RootDatabase>, expr: &ast::Expr) -> Option<hir::Enum> {
-    sema.type_of_expr(expr)?.adjusted().autoderef(sema.db).
-    find_map(|ty| match ty.as_adt() {
+    sema.type_of_expr(expr)?.adjusted().autoderef(sema.db).find_map(|ty| match ty.as_adt() {
         Some(Adt::Enum(e)) => Some(e),
         _ => None,
     })
 }
-
 
 pub(crate) fn intro_match(acc: &mut Assists, ctx: &AssistContext<'_>) -> Option<()> {
     let assert_keyword = ctx.find_token_syntax_at_offset(T![assert])?;
@@ -29,7 +27,13 @@ pub(crate) fn intro_match(acc: &mut Assists, ctx: &AssistContext<'_>) -> Option<
     dbg!(assert_expr.expr()?);
     let assert_goal = assert_expr.expr()?;
     let mut v = vec![];
-    let cb = &mut |e: Expr| if resolve_enum_def(&ctx.sema, &e).is_some() {v.push(e.clone()); ()} else {};
+    let cb = &mut |e: Expr| {
+        if resolve_enum_def(&ctx.sema, &e).is_some() {
+            v.push(e.clone());
+            ()
+        } else {
+        }
+    };
     walk_expr(&assert_goal, cb);
     let var_name = &v[0];
     let enum_def = resolve_enum_def(&ctx.sema, var_name)?;
@@ -51,10 +55,7 @@ pub(crate) fn intro_match(acc: &mut Assists, ctx: &AssistContext<'_>) -> Option<
         "Add match pattern for failed assert on enum ",
         assert_expr.syntax().text_range(),
         |edit| {
-            edit.replace(
-                assert_expr.syntax().text_range(),
-                result
-            );
+            edit.replace(assert_expr.syntax().text_range(), result);
         },
     )
 }
@@ -69,7 +70,7 @@ mod tests {
     fn intro_failing_ensures_easy() {
         check_assist(
             intro_match,
-r#"
+            r#"
     enum Movement {
         Up(u32),
         Down(u32),
@@ -87,7 +88,7 @@ r#"
         ass$0ert(is_good_move(m));
     }
 "#,
-r#"
+            r#"
     enum Movement {
         Up(u32),
         Down(u32),
@@ -108,6 +109,6 @@ r#"
 };
 }
 "#,
-    );
+        );
     }
 }

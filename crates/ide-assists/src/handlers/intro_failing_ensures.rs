@@ -3,7 +3,7 @@ use ide_db::syntax_helpers::node_ext::for_each_tail_expr;
 
 use syntax::{
     ast::{self, edit::AstNodeEdit},
-    AstNode, 
+    AstNode,
 };
 
 pub(crate) fn intro_failing_ensures(acc: &mut Assists, ctx: &AssistContext<'_>) -> Option<()> {

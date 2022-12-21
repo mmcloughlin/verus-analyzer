@@ -1,24 +1,19 @@
-use crate::{AssistContext, AssistId, AssistKind, Assists, CallInfo};
-// use ide_db::syntax_helpers::node_ext::{for_each_tail_expr, walk_expr};
-
+use crate::{AssistContext, AssistId, AssistKind, Assists};
 use syntax::{
-    ast::{self, edit::AstNodeEdit, make, Expr, HasAttrs},
-    match_ast, AstNode, TextRange,
+    ast::{self, HasAttrs},
+    AstNode,
 };
-
-
 
 // TODO(verus): maybe when "lower"ing, register proof visibility on HIR semantics as well
 //
 //
-
 
 // opacify selected function and reveal at every assertioin
 //
 //
 // Verus says: "trigger must be a function call, a field access, or a bitwise operator",
 // For now, ignore field access and bitwise ops
-// 
+//
 // 1.
 // Similar to "intro_requires", opacify the function in the cursor range
 // "#[verifier(opaque)]"
@@ -29,25 +24,22 @@ use syntax::{
 // Spec function will be inside "assert", "requires", and "ensures"
 // for now, deal with "assert" only
 
-
-
-
-
 // let function = ctx.sema.to_def(&ast_func)?;
 // let params = get_fn_params(ctx.sema.db, function, &param_list)?;
 // let usages = Definition::Function(function).usages(&ctx.sema);
 
-
-
-
-
 // see toggle_ignore's `fn has_ignore_attribute` for more info
 fn has_opaque_attribute(fn_def: &ast::Fn) -> Option<ast::Attr> {
-    fn_def.attrs().find(|attr| attr.meta().map(|it| {dbg!(it.syntax()); it.syntax().text() == "verifier(opaque)"}) == Some(true))
+    fn_def.attrs().find(|attr| {
+        attr.meta().map(|it| {
+            dbg!(it.syntax());
+            it.syntax().text() == "verifier(opaque)"
+        }) == Some(true)
+    })
 }
 
 pub(crate) fn opacify_function(acc: &mut Assists, ctx: &AssistContext<'_>) -> Option<()> {
-    // get hir-def of function   
+    // get hir-def of function
     let (function, callinfo) = ctx.get_function_from_callsite()?;
     // get CST node of function
     let fn_source = ctx.sema.source(function)?;
@@ -57,16 +49,18 @@ pub(crate) fn opacify_function(acc: &mut Assists, ctx: &AssistContext<'_>) -> Op
         return None;
     }
 
-
-    // TODO use ".usages" to reveal things 
-    
+    // TODO use ".usages" to reveal things
 
     let fn_start = fn_source.value.syntax().text_range().start();
-    acc.add(AssistId("opacify_function", AssistKind::RefactorRewrite), "Make this function opaque and reveal at every callsite", callinfo.node.syntax().text_range(), |edit| {
-        edit.insert(fn_start, "#[verifier(opaque)]\n");
-    })
+    acc.add(
+        AssistId("opacify_function", AssistKind::RefactorRewrite),
+        "Make this function opaque and reveal at every callsite",
+        callinfo.node.syntax().text_range(),
+        |edit| {
+            edit.insert(fn_start, "#[verifier(opaque)]\n");
+        },
+    )
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -118,6 +112,4 @@ fn assert_by_test() {
 "#,
         );
     }
-
 }
-

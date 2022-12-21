@@ -1,6 +1,6 @@
 //! See [`AssistContext`].
 
-use hir::{Semantics, Function};
+use hir::{Function, Semantics};
 use ide_db::base_db::{FileId, FileRange};
 use ide_db::{label::Label, RootDatabase};
 use syntax::ast::HasName;
@@ -10,11 +10,11 @@ use syntax::{
     TextRange, TextSize, TokenAtOffset,
 };
 
-use crate::{VerusQuantifier, CallInfo};
 use crate::{
     assist_config::AssistConfig, Assist, AssistId, AssistKind, AssistResolveStrategy, GroupLabel,
     PostFailure, PreFailure, VerusError,
 };
+use crate::{CallInfo, VerusQuantifier};
 
 pub(crate) use ide_db::source_change::{SourceChangeBuilder, TreeMutator};
 
@@ -568,7 +568,7 @@ pub fn run_comby_for(
     token: SyntaxToken,
 ) -> Option<CombyResult> {
     let mut temp_text_string = String::new();
-    let provide_rule = "-rule";
+    let _provide_rule = "-rule";
     let flag_match_only = "-match-only";
     let flag_json_lines = "-json-lines";
     let flag_match_new_line = "-match-newline-at-toplevel";
