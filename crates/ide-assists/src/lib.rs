@@ -214,6 +214,7 @@ mod handlers {
     mod assert_comment;
     mod intro_ensures;
     mod intro_match;
+    mod apply_induction;
     mod intro_failing_ensures;
     mod intro_requires;
     mod opacify_function;
@@ -313,6 +314,7 @@ mod handlers {
             assert_comment::assert_comment,
             intro_ensures::intro_ensures,
             intro_match::intro_match,
+            apply_induction::apply_induction,
             intro_failing_ensures::intro_failing_ensures,
             intro_requires::intro_requires,
             opacify_function::opacify_function,
