@@ -215,6 +215,7 @@ mod handlers {
     mod intro_ensures;
     mod intro_match;
     mod apply_induction;
+    mod remove_dead_assertions;
     mod intro_failing_ensures;
     mod intro_requires;
     mod opacify_function;
@@ -316,6 +317,7 @@ mod handlers {
             intro_ensures::intro_ensures,
             intro_match::intro_match,
             apply_induction::apply_induction,
+            remove_dead_assertions::remove_dead_assertions,
             intro_failing_ensures::intro_failing_ensures,
             intro_requires::intro_requires,
             opacify_function::opacify_function,
