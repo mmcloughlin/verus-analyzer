@@ -256,6 +256,7 @@ mod handlers {
     mod unwrap_result_return_type;
     mod wrap_return_type_in_result;
     mod wp_assign;
+    mod wp_single_branch;
 
     pub(crate) fn all() -> &'static [Handler] {
         &[
@@ -361,6 +362,7 @@ mod handlers {
             unwrap_result_return_type::unwrap_result_return_type,
             wrap_return_type_in_result::wrap_return_type_in_result,
             wp_assign::wp_assign,
+            wp_single_branch::wp_single_branch,
             // These are manually sorted for better priorities. By default,
             // priority is determined by the size of the target range (smaller
             // target wins). If the ranges are equal, position in this list is
