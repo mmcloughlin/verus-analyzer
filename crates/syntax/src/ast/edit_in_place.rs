@@ -642,6 +642,9 @@ impl ast::Stmt {
     pub fn remove(&self) {
         ted::remove(self.syntax());
     }
+    // pub fn comment_out(&self) {
+    //     ted::insert(position, elem)
+    // }
 }
 
 impl ast::VariantList {

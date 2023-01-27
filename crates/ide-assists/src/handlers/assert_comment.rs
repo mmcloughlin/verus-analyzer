@@ -8,6 +8,12 @@ use syntax::{
     SyntaxKind, T,
 };
 
+/*
+Check if a single assertion is necessary for the proof success.
+If it is redundant, the assertion is commented out
+if not, "// OBSERVE" is appended.
+ */
+
 pub(crate) fn assert_comment(acc: &mut Assists, ctx: &AssistContext<'_>) -> Option<()> {
     let assert_keyword = ctx.find_token_syntax_at_offset(T![assert])?;
     let assert_range = assert_keyword.text_range();

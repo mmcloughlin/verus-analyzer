@@ -1,16 +1,18 @@
-use syntax::ted;
 use crate::{AssistContext, Assists};
 use hir::{HasCrate, PathResolution};
-use ide_db::{syntax_helpers::node_ext::walk_expr, assists::{AssistKind, AssistId}};
+use ide_db::{
+    assists::{AssistId, AssistKind},
+    syntax_helpers::node_ext::walk_expr,
+};
+use syntax::ted;
 
 use syntax::{
-    ast::{self, Expr,},
-    AstNode, T, SyntaxToken,
+    ast::{self, Expr},
+    AstNode, SyntaxToken, T,
 };
 
 // TODO: is this the perfered way to get the previous statment?
-fn get_prev_stmt(ctx: &AssistContext<'_>) -> Option<ast::Stmt>
-{
+fn get_prev_stmt(ctx: &AssistContext<'_>) -> Option<ast::Stmt> {
     let block: ast::BlockExpr = ctx.find_node_at_offset::<ast::BlockExpr>()?;
     let statements = block.stmt_list()?.statements();
     let cur_stmt: ast::Stmt = ctx.find_node_at_offset::<ast::Stmt>()?;
@@ -25,25 +27,23 @@ fn get_prev_stmt(ctx: &AssistContext<'_>) -> Option<ast::Stmt>
     prev
 }
 
-fn is_assign_stmt(stmt: ast::Stmt) -> Option<ast::BinExpr> 
-{
+fn is_assign_stmt(stmt: ast::Stmt) -> Option<ast::BinExpr> {
     let mut res = None;
     if let ast::Stmt::ExprStmt(stmt) = stmt {
         let bin_expr = ast::BinExpr::cast(stmt.syntax().first_child()?)?;
         if let Some(expr_op) = bin_expr.op_kind() {
-            if expr_op == (ast::BinaryOp::Assignment {op: None}) {
+            if expr_op == (ast::BinaryOp::Assignment { op: None }) {
                 res = Some(bin_expr);
             }
-        } 
+        }
     }
     res
 }
 
-fn expr_contains_call(expr: &Expr) -> bool
-{
+fn expr_contains_call(expr: &Expr) -> bool {
     let mut has_call = false;
     let cb = &mut |e: Expr| {
-        if let ast::Expr::CallExpr{..} = e {
+        if let ast::Expr::CallExpr { .. } = e {
             has_call = true;
         }
     };
@@ -51,8 +51,7 @@ fn expr_contains_call(expr: &Expr) -> bool
     has_call
 }
 
-fn reoslve_local(e: &Expr, ctx: &AssistContext<'_>) -> Option<hir::Local>
-{
+fn reoslve_local(e: &Expr, ctx: &AssistContext<'_>) -> Option<hir::Local> {
     let pexpr = ast::PathExpr::cast(e.syntax().clone())?;
     let pres = ctx.sema.resolve_path(&pexpr.path()?)?;
     if let PathResolution::Local(local) = pres {
@@ -62,8 +61,11 @@ fn reoslve_local(e: &Expr, ctx: &AssistContext<'_>) -> Option<hir::Local>
     }
 }
 
-fn local_usages(expr: &ast::Expr, target: &hir::Local, ctx: &AssistContext<'_>) -> Vec<syntax::SyntaxElement>
-{
+fn local_usages(
+    expr: &ast::Expr,
+    target: &hir::Local,
+    ctx: &AssistContext<'_>,
+) -> Vec<syntax::SyntaxElement> {
     let mut vec = vec![];
     let cb = &mut |e: Expr| {
         if let Some(current) = reoslve_local(&e, ctx) {
@@ -101,7 +103,7 @@ pub(crate) fn wp_assign(acc: &mut Assists, ctx: &AssistContext<'_>) -> Option<()
 
     if let Some(target) = reoslve_local(&assign_stmt.lhs()?, ctx) {
         let assert_expr = assert_expr.clone_for_update();
-        let usages :Vec<syntax::SyntaxElement> = local_usages(&assert_expr, &target, ctx);
+        let usages: Vec<syntax::SyntaxElement> = local_usages(&assert_expr, &target, ctx);
         for usage in usages {
             ted::replace(usage, ted::Element::syntax_element(rhs.clone_for_update().syntax()));
         }
@@ -136,7 +138,7 @@ fn foo()
     ass$0ert(a > 10 && a < 100);
 }
 "#,
-r#"
+            r#"
 fn foo()
 {
     let mut a:u32 = 1;
@@ -159,7 +161,7 @@ fn foo()
     ass$0ert(a > 10 && a < 100);
 }
 "#,
-r#"
+            r#"
 fn foo()
 {
     let mut a:u32 = 1;
@@ -170,5 +172,4 @@ fn foo()
 "#,
         );
     }
-
 }
