@@ -88,7 +88,7 @@ pub(crate) fn wp_assign(acc: &mut Assists, ctx: &AssistContext<'_>) -> Option<()
 
     let assign_stmt = get_prev_stmt(ctx)?;
     let assign_stmt = is_assign_stmt(assign_stmt)?;
-    let rhs = assign_stmt.rhs()?.clone_for_update();
+    let rhs = assign_stmt.rhs()?;
 
     if expr_contains_call(&rhs) {
         // TODO: handle call? read ensures? unfold definition?
@@ -103,7 +103,7 @@ pub(crate) fn wp_assign(acc: &mut Assists, ctx: &AssistContext<'_>) -> Option<()
         let assert_expr = assert_expr.clone_for_update();
         let usages :Vec<syntax::SyntaxElement> = local_usages(&assert_expr, &target, ctx);
         for usage in usages {
-            ted::replace(usage, ted::Element::syntax_element(rhs.syntax()));
+            ted::replace(usage, ted::Element::syntax_element(rhs.clone_for_update().syntax()));
         }
         acc.add(
             AssistId("wp_assign", AssistKind::RefactorRewrite),
@@ -129,22 +129,46 @@ mod tests {
         check_assist(
             wp_assign,
             r#"
-fn assign_wp() 
+fn foo()
 {
     let mut a:u32 = 1;
     a = 8;
-    ass$0ert(a > 10);
+    ass$0ert(a > 10 && a < 100);
 }
 "#,
 r#"
-fn assign_wp() 
+fn foo()
 {
     let mut a:u32 = 1;
-    assert(8 > 10);
+    assert(8 > 10 && 8 < 100);
     a = 8;
-    assert(a > 10);
+    assert(a > 10 && a < 100);
 }
 "#,
         );
     }
+    #[test]
+    fn wp_assign_expr() {
+        check_assist(
+            wp_assign,
+            r#"
+fn foo()
+{
+    let mut a:u32 = 1;
+    a = 8 + 9;
+    ass$0ert(a > 10 && a < 100);
+}
+"#,
+r#"
+fn foo()
+{
+    let mut a:u32 = 1;
+    assert(8 + 9 > 10 && 8 + 9 < 100);
+    a = 8 + 9;
+    assert(a > 10 && a < 100);
+}
+"#,
+        );
+    }
+
 }
