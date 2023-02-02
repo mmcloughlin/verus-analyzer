@@ -1,11 +1,11 @@
 use crate::{AssistContext, AssistId, AssistKind, Assists};
-use hir::{Adt, db::HirDatabase, Semantics, TypeInfo, ModuleDef, HasSource};
+use hir::{db::HirDatabase, Adt, HasSource, ModuleDef, Semantics, TypeInfo};
+use ide_db::{helpers::mod_path_to_ast, RootDatabase};
+use std::iter::{self, Peekable};
 use syntax::{
-    ast::{self, edit::IndentLevel, HasName, make},
+    ast::{self, edit::IndentLevel, make, HasName},
     AstNode,
 };
-use ide_db::{RootDatabase, helpers::mod_path_to_ast};
-use std::iter::{self, Peekable};
 /*
 
 For now we assume that the function has only a single argument.
@@ -19,9 +19,11 @@ We also generate the decreases clause on the single argument.
 
 */
 
-
 // referenced `add_missing_match_arms`
-fn resolve_enum_type(sema: &Semantics<'_, RootDatabase>, type_of_enum: &ast::Type) -> Option<hir::Enum> {
+fn resolve_enum_type(
+    sema: &Semantics<'_, RootDatabase>,
+    type_of_enum: &ast::Type,
+) -> Option<hir::Enum> {
     sema.resolve_type(type_of_enum)?.autoderef(sema.db).find_map(|ty| match ty.as_adt() {
         Some(Adt::Enum(e)) => Some(e),
         _ => None,
@@ -35,14 +37,12 @@ fn build_pat(db: &RootDatabase, module: hir::Module, var: hir::Variant) -> Optio
     // FIXME: use HIR for this; it doesn't currently expose struct vs. tuple vs. unit variants though
     let pat: ast::Pat = match var.source(db)?.value.kind() {
         ast::StructKind::Tuple(field_list) => {
-            let pats =
-                iter::repeat(make::wildcard_pat().into()).take(field_list.fields().count());
+            let pats = iter::repeat(make::wildcard_pat().into()).take(field_list.fields().count());
             make::tuple_struct_pat(path, pats).into()
         }
         ast::StructKind::Record(field_list) => {
-            let pats = field_list
-                .fields()
-                .map(|f| make::ext::simple_ident_pat(f.name().unwrap()).into());
+            let pats =
+                field_list.fields().map(|f| make::ext::simple_ident_pat(f.name().unwrap()).into());
             make::record_pat(path, pats).into()
         }
         ast::StructKind::Unit => make::path_pat(path),
@@ -79,8 +79,6 @@ fn get_fn_params(
     Some(params)
 }
 
-
-
 pub(crate) fn apply_induction(acc: &mut Assists, ctx: &AssistContext<'_>) -> Option<()> {
     // setup basic variables
     // available on `fn` keyword
@@ -93,7 +91,7 @@ pub(crate) fn apply_induction(acc: &mut Assists, ctx: &AssistContext<'_>) -> Opt
     }
     // if it is not proof function, return None
     func.fn_mode()?.proof_token()?;
-    
+
     // setup indentation helpers
     let one_indent = IndentLevel::from(1);
     let two_indent = one_indent + 1;
@@ -109,7 +107,6 @@ pub(crate) fn apply_induction(acc: &mut Assists, ctx: &AssistContext<'_>) -> Opt
     let arg_pat = &params[0].0;
     let arg_type = params[0].1.as_ref()?;
 
-
     let body: ast::BlockExpr = func.body()?;
     let module = ctx.sema.scope(body.syntax())?.module();
     let func_name = func.name()?;
@@ -117,11 +114,11 @@ pub(crate) fn apply_induction(acc: &mut Assists, ctx: &AssistContext<'_>) -> Opt
     // TODO: add decreases clause if there isn't
     // let decreases: ast::DecreasesClause = func.decreases_clause()?;
     // let decreasing_expr = decreases.expr()?;
-    
+
     dbg!(arg_type.to_string());
     let mut found_recursive = false;
-    let induction_proof_body = 
-    if arg_type.to_string() == "nat".to_string() { // REVIEW: does this work?
+    let induction_proof_body = if arg_type.to_string() == "nat".to_string() {
+        // REVIEW: does this work?
         dbg!("apply induction nat");
         // If `nat`, do base-case zero, and do recursive call on `else`.
         // just assume integer and base case zero
@@ -137,7 +134,8 @@ pub(crate) fn apply_induction(acc: &mut Assists, ctx: &AssistContext<'_>) -> Opt
         //     for variants without `self`, do nothing
         dbg!("apply induction enum");
         let enum_def = resolve_enum_type(&ctx.sema, &arg_type)?;
-        let enum_variants: Vec<hir::Variant> = enum_def.variants(ctx.sema.db).into_iter().collect::<Vec<_>>();
+        let enum_variants: Vec<hir::Variant> =
+            enum_def.variants(ctx.sema.db).into_iter().collect::<Vec<_>>();
         let enum_name = enum_def.name(ctx.sema.db);
         let enum_type = enum_def.ty(ctx.sema.db);
         let mut match_cases = vec![];
@@ -178,7 +176,8 @@ pub(crate) fn apply_induction(acc: &mut Assists, ctx: &AssistContext<'_>) -> Opt
             let seperator = format!("\n{three_indent}");
             let recursive_calls_string = recursive_calls.join(&seperator);
 
-            let match_case_block = format!("{pat} => {{\n{three_indent}{recursive_calls_string}\n{two_indent}}},");
+            let match_case_block =
+                format!("{pat} => {{\n{three_indent}{recursive_calls_string}\n{two_indent}}},");
             match_cases.push(match_case_block);
         }
         if !found_recursive {
@@ -190,18 +189,14 @@ pub(crate) fn apply_induction(acc: &mut Assists, ctx: &AssistContext<'_>) -> Opt
         let match_case_string = match_cases.join(&seperator);
         format!("{{\n{one_indent}match {arg_pat} {{\n{two_indent}{match_case_string}\n{one_indent}}}\n}}")
     };
-    
+
     dbg!("register apply induction");
     acc.add(
         AssistId("apply_induction", AssistKind::RefactorRewrite),
         "Apply induction",
         body.syntax().text_range(),
-        |edit| {
-            edit.replace(body.syntax().text_range(), induction_proof_body)
-        },
+        |edit| edit.replace(body.syntax().text_range(), induction_proof_body),
     )
-    
-
 }
 
 #[cfg(test)]
@@ -267,10 +262,8 @@ proof fn sum_equal(n: nat)
         );
     }
 
-
-
     #[test]
-// https://github.com/verus-lang/verus/blob/0088380265ed6e10c5d8034e89ce807a728f98e3/source/rust_verify/example/summer_school/chapter-1-22.rs
+    // https://github.com/verus-lang/verus/blob/0088380265ed6e10c5d8034e89ce807a728f98e3/source/rust_verify/example/summer_school/chapter-1-22.rs
     fn apply_induction_on_enum1() {
         check_assist(
             apply_induction,
@@ -308,8 +301,6 @@ proof fn$0 sorted_tree_means_sorted_sequence(tree: Tree)
 {
 }
 "#,
-
-
             r#"
 use core::ops::Deref;
 
@@ -353,11 +344,9 @@ proof fn sorted_tree_means_sorted_sequence(tree: Tree)
     }
 }
 
-
 // maybe do something without box first?
 // box seems to work in runtime --- in test env, box seems not imported automatically
 // num Nat { Succ(Self), Demo(Nat), Zero }
-
 
 //
 //
@@ -387,53 +376,51 @@ proof fn sorted_tree_means_sorted_sequence(tree: Tree)
 //     n
 // }
 
+// let enum_syntax = enum_def.source(ctx.sema.db)?.value;
+// println!("{}", &enum_syntax);
+// for var in enum_syntax.variant_list()?.variants() {
+//     dbg!("{}", &var);
+//     if let Some(field_list) = var.field_list()  {
+//         match field_list{
+//             ast::FieldList::RecordFieldList(records) => {
+//                 for field in records.fields() {
+//                     dbg!(&field.name());
+//                     dbg!(&field.ty());
+//                 }
+//             }
+//             ast::FieldList::TupleFieldList(tuples) => {
+//                 for field in tuples.fields() {
+//                     dbg!(&field);
+//                 }
+//             }
+//         }
+//     }
+// }
 
-        // let enum_syntax = enum_def.source(ctx.sema.db)?.value;
-        // println!("{}", &enum_syntax);
-        // for var in enum_syntax.variant_list()?.variants() {
-        //     dbg!("{}", &var);
-        //     if let Some(field_list) = var.field_list()  {
-        //         match field_list{
-        //             ast::FieldList::RecordFieldList(records) => {
-        //                 for field in records.fields() {
-        //                     dbg!(&field.name());
-        //                     dbg!(&field.ty());
-        //                 }
-        //             }
-        //             ast::FieldList::TupleFieldList(tuples) => {
-        //                 for field in tuples.fields() {
-        //                     dbg!(&field);
-        //                 }
-        //             }
-        //         }
-        //     }
-        // }
+// walk_ty(enum_syntax, &mut |t| {
+//     dbg!(&t);
+//     if t == enum_type {
+//         // dbg!(&t);
+//         println!("found enum type");
+//     }
+// });
+// enum_type.walk(ctx.sema.db, |t| {
+//     dbg!(&t);
+//     if t == enum_type {
+//         // dbg!(&t);
+//         println!("found enum type");
+//     }
+// });
 
-        // walk_ty(enum_syntax, &mut |t| {
-        //     dbg!(&t);
-        //     if t == enum_type {
-        //         // dbg!(&t);
-        //         println!("found enum type");
-        //     }
-        // });
-        // enum_type.walk(ctx.sema.db, |t| {
-        //     dbg!(&t);
-        //     if t == enum_type {
-        //         // dbg!(&t);
-        //         println!("found enum type");
-        //     }
-        // });
-
-
-        // let recursive_call = format!("{func_name}(({arg_pat} - 1) as nat);");
-        // let one_ident = IndentLevel::from(1);
-        // let two_ident = one_ident + 1;
-        // let induction_proof_body = format!(
-        //     "{{\n{one_ident}if {arg_pat} == 0 {{}}\n{one_ident}else {{\n{two_ident}{recursive_call}\n{one_ident}}}\n}}"
-        // );
-        // acc.add(
-        //     AssistId("apply_induction", AssistKind::RefactorRewrite),
-        //     "Apply induction on nat",
-        //     body.syntax().text_range(),
-        //     |edit| edit.replace(body.syntax().text_range(), induction_proof_body),
-        // )
+// let recursive_call = format!("{func_name}(({arg_pat} - 1) as nat);");
+// let one_ident = IndentLevel::from(1);
+// let two_ident = one_ident + 1;
+// let induction_proof_body = format!(
+//     "{{\n{one_ident}if {arg_pat} == 0 {{}}\n{one_ident}else {{\n{two_ident}{recursive_call}\n{one_ident}}}\n}}"
+// );
+// acc.add(
+//     AssistId("apply_induction", AssistKind::RefactorRewrite),
+//     "Apply induction on nat",
+//     body.syntax().text_range(),
+//     |edit| edit.replace(body.syntax().text_range(), induction_proof_body),
+// )
