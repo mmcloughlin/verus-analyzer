@@ -5,7 +5,7 @@ use crate::{
 };
 use syntax::{
     ast::{self, AstNode},
-    SyntaxKind, T,
+    SyntaxKind,
 };
 
 /*
@@ -15,6 +15,10 @@ If it is redundant, the assertion is commented out
  */
 
 pub(crate) fn remove_dead_assertions(acc: &mut Assists, ctx: &AssistContext<'_>) -> Option<()> {
+    // FIXME: it currently takes too much time to calculate this thing
+    // Furthermore, since this whole thing is processed when user clicks `fn`, this needs to be fixed
+    return None;
+    //
     let func = ctx.find_node_at_offset::<ast::Fn>()?;
     let fn_token = func.fn_token()?;
     let fn_token_range = fn_token.text_range();
