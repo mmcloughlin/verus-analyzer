@@ -441,7 +441,8 @@ fn verus_walkthrough2() {
         {
             x + y
         }    
-
+ 
+        // hello comment
         spec fn my_spec_fun(x: int, y: int) -> int
             recommends
                 x < 100,
