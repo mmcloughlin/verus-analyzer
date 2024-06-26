@@ -1,6 +1,6 @@
 [package]
 name = "verus-analyzer"
-version = "0.0.0"
+version = "0.1.0"
 description = "A language server for the Verus programming language"
 autobins = false
 
