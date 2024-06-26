@@ -2,8 +2,6 @@ name: release
 on:
   workflow_dispatch:
   push:
-    branches:
-      - main
 
 # TODO(mbm): are all these needed for our subset of targets?
 env:
