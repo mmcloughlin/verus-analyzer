@@ -18,9 +18,16 @@ jobs:
     strategy:
       matrix:
         include:
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
           - os: ubuntu-20.04
             target: x86_64-unknown-linux-gnu
-            code-target: linux-x64
+          - os: macos-12
+            target: x86_64-apple-darwin
+            code-target: darwin-x64
+          - os: macos-12
+            target: aarch64-apple-darwin
+            code-target: darwin-arm64
 
     name: dist (${{ matrix.target }})
     runs-on: ${{ matrix.os }}
@@ -39,18 +46,6 @@ jobs:
           rustup update --no-self-update stable
           rustup target add ${{ matrix.target }}
           rustup component add rust-src
-
-      - name: Update apt repositories
-        if: matrix.target == 'aarch64-unknown-linux-gnu' || matrix.target == 'arm-unknown-linux-gnueabihf'
-        run: sudo apt-get update
-
-      - name: Install AArch64 target toolchain
-        if: matrix.target == 'aarch64-unknown-linux-gnu'
-        run: sudo apt-get install gcc-aarch64-linux-gnu
-
-      - name: Install ARM target toolchain
-        if: matrix.target == 'arm-unknown-linux-gnueabihf'
-        run: sudo apt-get install gcc-arm-linux-gnueabihf
 
       - name: Dist
         run: cargo xtask dist --client-patch-version ${{ github.run_number }}
