@@ -231,3 +231,4 @@ targets = ["aarch64-apple-darwin", "x86_64-apple-darwin", "x86_64-unknown-linux-
 pr-run-mode = "upload"
 # Whether to install an updater program
 install-updater = false
+features = ["proof-action"]
