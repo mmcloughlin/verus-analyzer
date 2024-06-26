@@ -2,12 +2,12 @@
 name = "rust-analyzer"
 version = "0.0.0"
 homepage = "https://rust-analyzer.github.io/"
-repository = "https://github.com/rust-analyzer/rust-analyzer"
 description = "A language server for the Rust programming language"
 documentation = "https://rust-analyzer.github.io/manual.html"
 autobins = false
 
 authors.workspace = true
+repository.workspace = true
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true

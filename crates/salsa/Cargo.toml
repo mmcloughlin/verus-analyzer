@@ -4,7 +4,6 @@ version = "0.0.0"
 authors = ["Salsa developers"]
 edition = "2021"
 license = "Apache-2.0 OR MIT"
-repository = "https://github.com/salsa-rs/salsa"
 description = "A generic framework for on-demand, incrementalized computation (experimental)"
 
 rust-version.workspace = true
