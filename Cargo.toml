@@ -8,6 +8,7 @@ rust-version = "1.78"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 authors = ["rust-analyzer team"]
+repository = "https://github.com/verus-lang/verus-analyzer"
 
 [profile.dev]
 # Disabling debug info speeds up builds a bunch,
@@ -32,6 +33,11 @@ debug = 0
 [profile.dev-rel]
 inherits = "release"
 debug = 2
+
+# The profile that 'cargo dist' will build with
+[profile.dist]
+inherits = "release"
+lto = "thin"
 
 [patch.'crates-io']
 # rowan = { path = "../rowan" }
@@ -210,3 +216,18 @@ print_stderr = "warn"
 
 rc_buffer = "warn"
 str_to_string = "warn"
+
+# Config for 'cargo dist'
+[workspace.metadata.dist]
+# The preferred cargo-dist version to use in CI (Cargo.toml SemVer syntax)
+cargo-dist-version = "0.16.0"
+# CI backends to support
+ci = "github"
+# The installers to generate for each app
+installers = ["shell"]
+# Target platforms to build apps for (Rust target-triple syntax)
+targets = ["aarch64-apple-darwin", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu"]
+# Publish jobs to run in CI
+pr-run-mode = "plan"
+# Whether to install an updater program
+install-updater = false

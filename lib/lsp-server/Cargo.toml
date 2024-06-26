@@ -3,7 +3,6 @@ name = "lsp-server"
 version = "0.7.6"
 description = "Generic LSP server scaffold."
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/rust-lang/rust-analyzer/tree/master/lib/lsp-server"
 edition = "2021"
 
 [dependencies]
