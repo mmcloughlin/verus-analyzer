@@ -15,13 +15,13 @@ use std::{env, fs, path::PathBuf, process::ExitCode, sync::Arc};
 
 use anyhow::Context;
 use lsp_server::Connection;
-use rust_analyzer::{
+use semver::Version;
+use tracing_subscriber::fmt::writer::BoxMakeWriter;
+use verus_analyzer::{
     cli::flags,
     config::{Config, ConfigChange, ConfigErrors},
     from_json,
 };
-use semver::Version;
-use tracing_subscriber::fmt::writer::BoxMakeWriter;
 use vfs::AbsPathBuf;
 
 #[cfg(feature = "mimalloc")]
@@ -63,7 +63,7 @@ fn actual_main() -> anyhow::Result<ExitCode> {
                 break 'lsp_server;
             }
             if cmd.version {
-                println!("rust-analyzer {}", rust_analyzer::version());
+                println!("rust-analyzer {}", verus_analyzer::version());
                 break 'lsp_server;
             }
 
@@ -129,7 +129,7 @@ fn setup_logging(log_file_flag: Option<PathBuf>) -> anyhow::Result<()> {
         None => BoxMakeWriter::new(std::io::stderr),
     };
 
-    rust_analyzer::tracing::Config {
+    verus_analyzer::tracing::Config {
         writer,
         // Deliberately enable all `error` logs if the user has not set RA_LOG, as there is usually
         // useful information in there for debugging.
@@ -163,7 +163,7 @@ fn with_extra_thread(
 }
 
 fn run_server() -> anyhow::Result<()> {
-    tracing::info!("server version {} will start", rust_analyzer::version());
+    tracing::info!("server version {} will start", verus_analyzer::version());
 
     let (connection, io_threads) = Connection::stdio();
 
@@ -245,13 +245,13 @@ fn run_server() -> anyhow::Result<()> {
         }
     }
 
-    let server_capabilities = rust_analyzer::server_capabilities(&config);
+    let server_capabilities = verus_analyzer::server_capabilities(&config);
 
     let initialize_result = lsp_types::InitializeResult {
         capabilities: server_capabilities,
         server_info: Some(lsp_types::ServerInfo {
             name: String::from("rust-analyzer"),
-            version: Some(rust_analyzer::version().to_string()),
+            version: Some(verus_analyzer::version().to_string()),
         }),
         offset_encoding: None,
     };
@@ -271,7 +271,7 @@ fn run_server() -> anyhow::Result<()> {
 
     // If the io_threads have an error, there's usually an error on the main
     // loop too because the channels are closed. Ensure we report both errors.
-    match (rust_analyzer::main_loop(config, connection), io_threads.join()) {
+    match (verus_analyzer::main_loop(config, connection), io_threads.join()) {
         (Err(loop_e), Err(join_e)) => anyhow::bail!("{loop_e}\n{join_e}"),
         (Ok(_), Err(join_e)) => anyhow::bail!("{join_e}"),
         (Err(loop_e), Ok(_)) => anyhow::bail!("{loop_e}"),
