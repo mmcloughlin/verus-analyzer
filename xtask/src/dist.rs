@@ -106,9 +106,9 @@ fn dist_server(
     let target_name = &target.name;
     let features = allocator.to_features();
     if proof_action {
-        cmd!(sh, "cargo build --manifest-path ./crates/rust-analyzer/Cargo.toml --bin rust-analyzer --target {target_name} --release {features...} --features proof-action").run()?;
+        cmd!(sh, "cargo build --manifest-path ./crates/rust-analyzer/Cargo.toml --bin verus-analyzer --target {target_name} --release {features...} --features proof-action").run()?;
     } else {
-        cmd!(sh, "cargo build --manifest-path ./crates/rust-analyzer/Cargo.toml --bin rust-analyzer --target {target_name} {features...} --release").run()?;
+        cmd!(sh, "cargo build --manifest-path ./crates/rust-analyzer/Cargo.toml --bin verus-analyzer --target {target_name} {features...} --release").run()?;
     }
 
     let dst = Path::new("dist").join(&target.artifact_name);
@@ -199,7 +199,7 @@ impl Target {
         } else {
             (String::new(), None)
         };
-        let server_path = out_path.join(format!("rust-analyzer{exe_suffix}"));
+        let server_path = out_path.join(format!("verus-analyzer{exe_suffix}"));
         let artifact_name = format!("verus-analyzer-{name}{exe_suffix}");
         Self { name, server_path, symbols_path, artifact_name }
     }
