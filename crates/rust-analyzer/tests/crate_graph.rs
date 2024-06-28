@@ -4,9 +4,9 @@ use project_model::{
     CargoWorkspace, ManifestPath, Metadata, ProjectWorkspace, ProjectWorkspaceKind, Sysroot,
     WorkspaceBuildScripts,
 };
-use rust_analyzer::ws_to_crate_graph;
 use rustc_hash::FxHashMap;
 use serde::de::DeserializeOwned;
+use verus_analyzer::ws_to_crate_graph;
 use vfs::{AbsPathBuf, FileId};
 
 fn load_cargo_with_fake_sysroot(file: &str) -> ProjectWorkspace {

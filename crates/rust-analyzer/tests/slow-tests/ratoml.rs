@@ -8,7 +8,7 @@ use lsp_types::{
 };
 use paths::Utf8PathBuf;
 
-use rust_analyzer::lsp::ext::{InternalTestingFetchConfig, InternalTestingFetchConfigParams};
+use verus_analyzer::lsp::ext::{InternalTestingFetchConfig, InternalTestingFetchConfigParams};
 use serde_json::json;
 
 enum QueryType {
